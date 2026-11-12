@@ -20,7 +20,9 @@ def evaluate_reports(report_dir: Path, expected_path: Path, output_path: Path) -
         checked += 1
         wanted = gold.get("condition_id") or gold.get("condition")
         top = report["candidates"][0] if report["candidates"] else None
-        got = top and (top["condition_id"] if wanted and str(wanted).startswith("condition_") else top["name"])
+        got = None
+        if top:
+            got = top["condition_id"] if wanted == top["condition_id"] else top["name"]
         is_correct = got == wanted
         correct += int(is_correct)
         rows.append({"case": case_name, "expected": wanted, "top1": got, "correct": is_correct})
