@@ -133,7 +133,7 @@ document.getElementById('upload-form').addEventListener('submit',e=>{
 
 
 def _parse_multipart(content_type: str, body: bytes) -> dict[str, list[tuple[str, bytes]]]:
-    headers = (f"Content-Type: {content_type}\\r\\nMIME-Version: 1.0\\r\\n\\r\\n").encode()
+    headers = (f"Content-Type: {content_type}\r\nMIME-Version: 1.0\r\n\r\n").encode()
     message = BytesParser(policy=policy.default).parsebytes(headers + body)
     fields: dict[str, list[tuple[str, bytes]]] = {}
     if not message.is_multipart():
