@@ -23,3 +23,21 @@ jobs:
           python -m genomic_detective run --dataset examples/demo_case.vcf --phenotype "арахнодактилия эктопия хрусталика расширение корня аорты высокий рост" --output outputs/demo
           python -m genomic_detective evaluate --reports outputs/demo --expected examples/expected_answers.json --output outputs/demo/evaluation.json
           python -c "import json; d=json.load(open('outputs/demo/evaluation.json', encoding='utf-8')); assert d['checked'] == 1 and d['top1_accuracy'] == 1.0, d"
+
+  windows-portable:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and verify portable Python
+        shell: powershell
+        run: ./scripts/bootstrap-python.ps1
+      - name: Run tests with portable Python
+        shell: powershell
+        run: ./.runtime/python-3.14.10/python.exe -m unittest discover -s tests -v
+      - name: Run sample analysis
+        shell: powershell
+        run: |
+          ./.runtime/python-3.14.10/python.exe -m genomic_detective run --dataset examples/demo_case.vcf --phenotype "арахнодактилия эктопия хрусталика расширение корня аорты высокий рост" --output outputs/demo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./.runtime/python-3.14.10/python.exe -m genomic_detective evaluate --reports outputs/demo --expected examples/expected_answers.json --output outputs/demo/evaluation.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
