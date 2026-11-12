@@ -1,12 +1,12 @@
 import unittest
 
 from genomic_detective.annotations import _vep_input
-from genomic_detective.models import Variant
-
 from genomic_detective.dataset import parse_vcf, parse_phenotypes, parse_case_files
 from genomic_detective.knowledge import load_knowledge
 from genomic_detective.models import CaseInput, Variant
-from genomic_detective.pipeline import analyze_case\nfrom genomic_detective.web import PAGE\nfrom genomic_detective.gtex import GTExProvider
+from genomic_detective.pipeline import analyze_case
+from genomic_detective.web import PAGE
+from genomic_detective.gtex import GTExProvider
 
 
 class PipelineTests(unittest.TestCase):
@@ -51,7 +51,7 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(report["status"], "incomplete")
 
     def test_generic_tsv_filename_is_parsed_as_variants(self):
-        text = "chrom\\tpos\\tref\\talt\\tgene\\tgenotype\\n17\\t43071077\\tC\\tT\\tBRCA1\\t0/1\\n"
+        text = "chrom\tpos\tref\talt\tgene\tgenotype\n17\t43071077\tC\tT\tBRCA1\t0/1\n"
         case = parse_case_files([("patient_upload.tsv", text.encode("utf-8"))], "upload")
         self.assertEqual(len(case.variants), 1)
         self.assertEqual(case.variants[0].gene, "BRCA1")
