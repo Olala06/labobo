@@ -1,29 +1,171 @@
-# Phenotype-guided Genomic Explorer
+# Геномный детектив
 
-A research/educational prototype inspired by [Synth_Hack / Genomic Detective](https://github.com/NursuUwU/Synth_Hack). Upload a VCF file, describe a phenotype, and receive a transparent ranked list of candidate genes with evidence notes and literature links.
+Локальный исследовательский прототип для приоритизации генетических гипотез по вариантам и фенотипу. Поддерживает отдельный VCF/VCF.GZ/TSV, ZIP-архив с вариантами и фенотипическим файлом, а также текстовый ввод фенотипа в веб-интерфейсе или CLI.
 
-## Run locally
+Проект вдохновлён архитектурой [Synth_Hack / Genomic Detective](https://github.com/NursuUwU/Synth_Hack), но реализован как самостоятельный компактный Python-проект. В этой версии нет внешних Python-зависимостей и не выполняются сетевые запросы.
 
-```bash
-python -m venv .venv
-# Windows: .venv\\Scripts\\activate
-# macOS/Linux: source .venv/bin/activate
-pip install -r requirements.txt
-streamlit run app.py
+## Что делает прототип
+
+1. Читает варианты из VCF/VCF.GZ или TSV; извлекает ген, последствие, ClinVar-поле и генотип, если эти сведения присутствуют во входе.
+2. Сопоставляет фенотип с небольшой явно курируемой таблицей терминов HPO и с HPO ID, указанными в тексте/файле.
+3. Запускает три детерминированных экспертных модуля: фенотипический, молекулярный и наследования.
+4. Объединяет результаты по весам из `config/ranking.json`, ранжирует состояния и формирует объяснение по каждому экспертному модулю.
+5. Сохраняет HTML, Markdown, JSON и TSV-отчёты.
+
+Это не три автономных LLM-агента. Оркестратор, правила и веса реализованы кодом. LLM в текущей версии не подключена. Тексты объяснений формируются из результатов экспертных модулей, а не создаются генеративной моделью.
+
+## Версия правил и ограничения
+
+Текущая версия прототипа — **0.2.0**. Веса по умолчанию: 0.55 фенотип, 0.35 молекулярные данные, 0.10 наследование. Их можно менять в `config/ranking.json`; сумма должна равняться 1.
+
+**Баллы не являются вероятностью заболевания, клинической точностью или классификацией ACMG/AMP.** Это внутренняя эвристическая шкала ранжирования. В этой демонстрационной версии молекулярный эксперт показывает варианты и аннотации, но **не добавляет молекулярный балл**: одного совпадения гена, последствия варианта или текстового `CLNSIG` недостаточно. Для положительной молекулярной поддержки нужна проверка точного ALT-аллеля, конкретного заболевания, транскрипта и статуса рецензирования ClinVar. Такая курируемая allele-condition-transcript база пока не включена.
+
+VUS, conflicting interpretations и benign/likely benign не добавляют положительную молекулярную поддержку. Отсутствие записи или данных не трактуется как доброкачественность. Для AD/AR показывается только ограниченная совместимость генотипа; VCF сам по себе не доказывает de novo, сегрегацию, cis/trans-фазу или причинность.
+
+База `knowledge.json` намеренно маленькая и включает только демонстрационные профили синдрома Марфана и муковисцидоза. Это не полный импорт HPO, ClinVar или GeneReviews. Не заявляются результаты внешней валидации или клиническая точность. Не используйте систему для диагностики, лечения или решений о репродуктивном риске. Не загружайте идентифицируемые генетические данные в недоверенные среды.
+
+## Быстрый запуск
+
+### Windows
+
+1. Скачайте репозиторий через **Code → Download ZIP** или клонируйте его.
+2. Полностью распакуйте архив в обычную папку.
+3. Дважды нажмите **`Start.cmd`**. Откроется локальное приложение в браузере.
+
+Требуется Python **3.10 или новее**. Скрипт сначала попробует использовать локальную среду `.venv`, затем Python Launcher `py -3.11` / `py -3.10`, затем системную команду `python`. Если подходящего Python нет, установите его с [python.org](https://www.python.org/downloads/). Администраторские права и API-ключ не нужны. Установки сторонних пакетов нет.
+
+### macOS / Linux
+
+Требуется Python **3.10+**. В терминале из распакованной папки выполните:
+
+```sh
+sh start.sh
 ```
 
-## Inputs
-- VCF (`.vcf` or `.vcf.gz`): variants are parsed from columns CHROM, POS, REF, ALT, INFO and optional FORMAT/sample genotype.
-- Phenotype: free text in English or Russian. This MVP uses curated keyword-to-HPO mappings in `knowledge.json`; unmatched phrases are shown as unmatched rather than silently treated as evidence.
+Или запустите CLI напрямую:
 
-## Output
-- Ranked candidate conditions/genes with a heuristic compatibility score (not a calibrated probability or diagnosis).
-- Evidence breakdown: phenotype matches, observed variants, variant annotations if present, and literature references.
-- Source links point to PubMed queries and HPO/ClinVar records; the app does not fabricate article titles or PMID identifiers.
+```sh
+python3 -m genomic_detective serve --open
+```
 
-## Important limitations
-This is an educational research prototype, not a clinical decision-support device. Scores are ranking heuristics, not clinical probabilities. The bundled knowledge base is deliberately small and must be expanded and independently reviewed before research use. A VCF alone cannot establish pathogenicity; phase, inheritance, coverage, phenotype quality, ancestry, transcript choice and clinical context matter. Do not upload identifiable patient data to an untrusted deployment.
+### Адрес и остановка
 
-## Architecture
-- `app.py`: Streamlit interface, VCF parsing, phenotype matching, ranking and report rendering.
-- `knowledge.json`: explicit, reviewable phenotype-condition-gene records and source identifiers/links.
+По умолчанию интерфейс доступен только на локальном компьютере: **http://127.0.0.1:8765**. Остановка — `Ctrl+C` в терминале. Можно выбрать другой порт:
+
+```sh
+python -m genomic_detective serve --port 8766 --open
+```
+
+## Работа с интерфейсом
+
+В веб-форме выберите `.vcf`, `.vcf.gz`, `.tsv` или `.zip`, добавьте описание фенотипа и нажмите **Проанализировать**. ZIP может включать файл вариантов и файл фенотипов с именем, содержащим `phenotype`, `phenotypes` или `hpo`. Текстовый ввод фенотипа объединяется с фенотипами из архива.
+
+Для распознавания фенотипа можно вводить известные словарю названия (сейчас доступны русские и английские синонимы из `knowledge.json`) или HPO ID, например `HP:0001166`. Неизвестные формулировки не превращаются в выдуманные термины: интерфейс покажет, что признаки не распознаны.
+
+## Команды
+
+Проверить локальную базу и входные данные:
+
+```powershell
+.\run.ps1 prepare
+.\run.ps1 prepare --dataset examples\demo_case.vcf
+```
+
+Проанализировать VCF с фенотипом:
+
+```powershell
+.\run.ps1 run --dataset examples\demo_case.vcf --phenotype "арахнодактилия эктопия хрусталика расширение корня аорты высокий рост" --output outputs\demo
+```
+
+Запустить локальный веб-интерфейс:
+
+```powershell
+.\run.ps1 serve --open
+```
+
+На macOS/Linux или при использовании Python напрямую:
+
+```sh
+python -m genomic_detective prepare --dataset examples/demo_case.vcf
+python -m genomic_detective run --dataset examples/demo_case.vcf --phenotype "арахнодактилия эктопия хрусталика расширение корня аорты высокий рост" --output outputs/demo
+python -m genomic_detective serve --open
+```
+
+Оценка top-1 выполняется только по предоставленным ожидаемым ответам (это не клиническая валидация):
+
+```sh
+python -m genomic_detective evaluate --reports outputs/demo --expected examples/expected_answers.json --output outputs/demo/evaluation.json
+```
+
+Для проверки кода:
+
+```sh
+python -m unittest discover -s tests -v
+```
+
+Коды возврата: **0** — команда завершилась; **2** — вход/случай неполный или не было строк для оценки; **1** — ошибка выполнения/файла.
+
+## Входные данные
+
+### VCF / VCF.GZ
+
+Читаются стандартные колонки VCF. Для поиска гена предпочтительны поля `INFO/SYMBOL` или `INFO/GENE`; также поддерживается извлечение части аннотаций из `INFO/CSQ` (если в заголовке определён формат) и `INFO/ANN`. Из FORMAT/sample извлекается GT. ClinVar-поле читается из `CLNSIG` / `CLIN_SIG`, но само по себе не засчитывается как молекулярное доказательство.
+
+### TSV
+
+Имена колонок сопоставляются без учёта регистра. Поддерживаемые синонимы: `chrom/chr/chromosome`, `pos/position/start`, `ref/reference`, `alt/alternate`, `gene/symbol/genesymbol`, `consequence/effect/annotation`, `clinvar/clinical_significance/clnsig`, `genotype/gt`.
+
+### ZIP и фенотипы
+
+ZIP читается в памяти, без распаковки файлов по путям на диске. Фенотипы могут задаваться текстовым полем интерфейса или файлом, имя которого содержит `phenotype`, `phenotypes` либо `hpo`. Для сопоставления используются только термины из локальной базы и HPO ID.
+
+## Результаты
+
+В выбранной папке `outputs`:
+
+- `case_XX.html` — отчёт для просмотра в браузере.
+- `case_XX.md` — текстовый объяснимый отчёт.
+- `case_XX.json` — входные данные, распознанные фенотипы, экспертные баллы, кандидаты, источники, предупреждения и ограничения.
+- `case_XX_ranking.tsv` — рейтинг для конкретного случая.
+- `ranking.tsv` — общий рейтинг всех обработанных случаев.
+- `predictions.tsv` — ответы только для завершённых случаев.
+- `predictions.partial.tsv` — случаи с неполными входными данными.
+- `run.json` — состав запуска, статусы и неполные случаи.
+- `evaluation.json` — появляется после отдельной команды `evaluate`.
+
+Наличие рейтинга не означает, что данные полны. Статусы `incomplete` и `no_convincing_candidate` имеют разный смысл: неполные данные нельзя интерпретировать как отсутствие подходящего кандидата.
+
+## Архитектура
+
+```text
+VCF / VCF.GZ / TSV / ZIP + фенотип
+                 |
+          dataset.py (парсер)
+                 |
+       knowledge.py (словарь)
+                 |
+        pipeline.py (оркестратор)
+          /          |           \
+ phenotype expert  molecular   inheritance
+          \          |           /
+             ranking.py
+                 |
+     reporting.py: HTML / MD / JSON / TSV
+                 |
+          evaluation.py
+```
+
+- `genomic_detective/dataset.py` — чтение VCF, TSV, ZIP и фенотипов.
+- `genomic_detective/experts.py` — три детерминированных экспертных модуля.
+- `genomic_detective/ranking.py` — взвешенная приоритизация и статусы.
+- `genomic_detective/pipeline.py` — оркестрация анализа.
+- `genomic_detective/reporting.py` — объяснимые HTML/Markdown/JSON/TSV отчёты.
+- `genomic_detective/web.py` — локальный веб-интерфейс на стандартной библиотеке Python.
+- `genomic_detective/cli.py` — команды подготовки, анализа, оценки и запуска сервера.
+- `config/ranking.json` — веса и порог внутренней оценки.
+
+## Источники и дальнейшее развитие
+
+Курируемые карточки заболеваний содержат ссылки на GeneReviews, HPO и поисковые страницы PubMed/ClinVar. Поисковые ссылки ведут к живой выдаче базы, а не к заранее проверенной статье по конкретному варианту. Точные доказательства по аллелю должны быть добавлены в отдельную рецензируемую базу с идентификаторами источников и версиями данных.
+
+Следующий этап для научно более строгой версии: полные HPO disease profiles; Ensembl VEP с фиксацией сборки/релиза и кэшированием; точное ClinVar allele-condition-transcript сопоставление с review status; отдельные правила для de novo, сегрегации и фазировки; независимый development/test набор и проверка калибровки до отображения вероятностей.
