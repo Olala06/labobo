@@ -135,7 +135,8 @@ class HPOEngine:
         seen = set()
         for query in queries[:250]:
             try:
-                term = self.ontology.get_hpo_object(query)
+                normalized_query = (f"HP:{query[2:]}" if re.fullmatch(r"HP\\d{7}", query, re.IGNORECASE) else query)
+                term = self.ontology.get_hpo_object(normalized_query)
             except (RuntimeError, TypeError, ValueError, KeyError):
                 # PyHPO's search includes ontology labels and synonyms. Only accept
                 # a unique exact label/synonym match to avoid guessing from prose.
