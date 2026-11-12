@@ -14,6 +14,14 @@ sh start.sh
 
 ## CLI
 
+Онлайн-аннотация доступна только в CLI и отключена по умолчанию. Пример с явным указанием сборки:
+
+```powershell
+.\\run.ps1 run --dataset examples\\demo_case.vcf --phenotype "арахнодактилия" --online --assembly GRCh38
+```
+
+При включении online-режима координаты и аллели вариантов отправляются Ensembl; фенотип не отправляется.
+
 ```sh
 python -m genomic_detective prepare
 python -m genomic_detective run --dataset examples/demo_case.vcf --phenotype "арахнодактилия эктопия хрусталика"
