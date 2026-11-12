@@ -155,7 +155,7 @@ if data:
             for source in item["sources"]:
                 st.markdown(f"- [{source['label']}]({source['url']})")
             q = quote(item["name"] + " " + " ".join(item["genes"]) + " phenotype genotype")
-            st.markdown(f"- [Найти публикации в PubMed] (https://pubmed.ncbi.nlm.nih.gov/?term={q})")
+            st.markdown(f"- [Найти публикации в PubMed](https://pubmed.ncbi.nlm.nih.gov/?term={q})")
     with st.expander("Просмотреть прочитанные варианты"):
         st.dataframe(data["variants"], use_container_width=True)
     report = {
