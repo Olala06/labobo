@@ -7,6 +7,7 @@ import webbrowser
 from pathlib import Path
 
 from . import __version__
+from .annotations import annotate_case
 from .dataset import load_case
 from .evaluation import evaluate_reports
 from .knowledge import load_knowledge
@@ -22,12 +23,20 @@ def _build_parser() -> argparse.ArgumentParser:
 
     prepare = sub.add_parser("prepare", help="Проверить локальную базу знаний и входной набор.")
     prepare.add_argument("--dataset", type=Path, help="Необязательный ZIP/VCF/TSV или каталог для проверки.")
+    prepare.add_argument("--online", action="store_true", help="Получить consequence-аннотации через Ensembl VEP.")
+    prepare.add_argument("--assembly", choices=["GRCh38"], help="Сборка генома; для online-аннотации требуется явно указать GRCh38.")
+    prepare.add_argument("--cache", type=Path, default=Path("data/ensembl-vep.sqlite"))
+    prepare.add_argument("--batch-size", type=int, default=200)
 
     run = sub.add_parser("run", help="Проанализировать VCF/TSV/ZIP и сохранить объяснимые отчёты.")
     run.add_argument("--dataset", type=Path, required=True)
     run.add_argument("--phenotype", default="", help="Свободное описание фенотипа или HPO ID.")
     run.add_argument("--case", default=None, help="Имя случая для отчёта.")
     run.add_argument("--output", type=Path, default=Path("outputs/demo"))
+    run.add_argument("--online", action="store_true", help="Получить отсутствующие consequence-аннотации через Ensembl VEP.")
+    run.add_argument("--assembly", choices=["GRCh38"], help="Сборка входного VCF; обязательна при --online.")
+    run.add_argument("--cache", type=Path, default=Path("data/ensembl-vep.sqlite"))
+    run.add_argument("--batch-size", type=int, default=200)
 
     evaluation = sub.add_parser("evaluate", help="Сравнить top-1 результаты с переданными ожидаемыми ответами.")
     evaluation.add_argument("--reports", type=Path, required=True)
@@ -47,17 +56,29 @@ def main(argv: list[str] | None = None) -> int:
         knowledge = load_knowledge()
         if args.command == "prepare":
             print(f"Локальная база знаний загружена: {len(knowledge['conditions'])} профилей заболеваний, {len(knowledge['phenotype_terms'])} фенотипических терминов.")
+            if args.online and not args.dataset:
+                raise ValueError("Для online prepare укажите --dataset.")
+            if args.online and args.assembly != "GRCh38":
+                raise ValueError("Перед online-аннотацией явно укажите --assembly GRCh38 и проверьте сборку входного файла.")
             if args.dataset:
                 case = load_case(args.dataset)
+                if args.online:
+                    stats = annotate_case(case, args.cache, args.batch_size)
+                    print(f"VEP: cache={stats['cached']}, annotated={stats['annotated']}, failed={stats['failed']}, skipped={stats['skipped']}.")
                 print(f"Найдено вариантов: {len(case.variants)}; файлов-источников: {len(case.source_files)}.")
                 for warning in case.warnings:
                     print(f"ПРЕДУПРЕЖДЕНИЕ: {warning}")
-                return 0 if case.variants else 2
+                return 0 if case.variants and not case.warnings else 2
             print("Внешнее скачивание данных не выполняется; prepare проверяет локальные данные и конфигурацию.")
             return 0
 
         if args.command == "run":
             case = load_case(args.dataset, args.phenotype)
+            if args.online:
+                if args.assembly != "GRCh38":
+                    raise ValueError("Перед online-аннотацией явно укажите --assembly GRCh38 и проверьте сборку входного файла.")
+                stats = annotate_case(case, args.cache, args.batch_size)
+                print(f"VEP: cache={stats['cached']}, annotated={stats['annotated']}, failed={stats['failed']}, skipped={stats['skipped']}.")
             if args.case:
                 case.name = args.case
             report = analyze_case(case, knowledge)
