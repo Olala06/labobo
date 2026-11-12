@@ -98,8 +98,6 @@ class GTExProvider:
         payload = self._request_json("expression/medianGeneExpression", {
             "gencodeId": versioned,
             "datasetId": DATASET,
-            "page": "0",
-            "itemsPerPage": "1000",
         })
         rows = []
         for record in _records(payload):
@@ -122,7 +120,7 @@ class GTExProvider:
             "gencode_id": versioned,
             "unit": "median normalized expression (TPM scale as returned by GTEx)",
             "top_tissues": rows[:8],
-            "source_url": "https://gtexportal.org/home/gene/" + urllib.parse.quote(versioned, safe=""),
+            "source_url": "https://gtexportal.org/home/apiPage",
         }
 
     def annotate_gene_candidates(self, candidates: list[dict[str, Any]], limit: int = 20) -> list[str]:
