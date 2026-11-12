@@ -53,7 +53,7 @@ VUS, conflicting interpretations и benign/likely benign не добавляют
 
 1. На GitHub нажмите **Code → Download ZIP**.
 2. В Проводнике Windows нажмите правой кнопкой по ZIP и выберите **Извлечь всё…**. Не запускайте файлы прямо внутри ZIP.
-3. Откройте извлечённую папку и дважды нажмите **`Start.cmd`**.
+3. Откройте извлечённую папку и дважды нажмите **`Start.cmd`** (не `README.md` и не `start.ps1`).
 4. При первом запуске программа проверит Python. Если его нет, она автоматически скачает официальный переносимый Python 3.14.10 с python.org, проверит архив по SHA-256 и поместит интерпретатор внутрь папки проекта `.runtime/`. Затем откроет приложение в браузере.
 5. При следующих запусках Python уже будет в папке проекта, поэтому повторная загрузка не нужна.
 
@@ -101,7 +101,7 @@ python -m genomic_detective serve --port 8766 --open
 Проанализировать VCF с фенотипом:
 
 ```powershell
-.\run.ps1 run --dataset examples\demo_case.vcf --phenotype "арахнодактилия эктопия хрусталика расширение корня аорты высокий рост" --output outputs\demo
+.\run.ps1 run --dataset examples\demo_case.vcf --phenotype "HP:0001166 HP:0001083 HP:0002616 HP:0000098" --output outputs\demo
 ```
 
 Запустить локальный веб-интерфейс:
@@ -116,7 +116,7 @@ python -m genomic_detective serve --port 8766 --open
 
 ```powershell
 .\\run.ps1 prepare --dataset examples\\demo_case.vcf --online --assembly GRCh38
-.\\run.ps1 run --dataset examples\\demo_case.vcf --phenotype "арахнодактилия эктопия хрусталика расширение корня аорты высокий рост" --online --assembly GRCh38 --output outputs\\vep_demo
+.\\run.ps1 run --dataset examples\\demo_case.vcf --phenotype "HP:0001166 HP:0001083 HP:0002616 HP:0000098" --online --assembly GRCh38 --output outputs\\vep_demo
 ```
 
 Поддерживается только явно указанная сборка **GRCh38**. Запросы отправляются пакетами до 200 записей и кэшируются локально в `data/ensembl-vep.sqlite`. В Ensembl передаются только координаты/аллели вариантов; текст фенотипа и идентификаторы пациента не отправляются. Геномные координаты могут быть чувствительными данными — включайте эту функцию только при наличии разрешения. VEP-аннотация последствия не доказывает патогенность и сама по себе не добавляет молекулярный балл. Подробности формата: [Ensembl VEP REST API](https://rest.ensembl.org/documentation/info/vep_region_post).
@@ -125,7 +125,7 @@ python -m genomic_detective serve --port 8766 --open
 
 ```sh
 python -m genomic_detective prepare --dataset examples/demo_case.vcf
-python -m genomic_detective run --dataset examples/demo_case.vcf --phenotype "арахнодактилия эктопия хрусталика расширение корня аорты высокий рост" --output outputs/demo
+python -m genomic_detective run --dataset examples/demo_case.vcf --phenotype "HP:0001166 HP:0001083 HP:0002616 HP:0000098" --output outputs/demo
 python -m genomic_detective serve --open
 ```
 
