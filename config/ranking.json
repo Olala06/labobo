@@ -1,0 +1,10 @@
+{
+  "weights": {
+    "phenotype": 0.55,
+    "molecular": 0.35,
+    "inheritance": 0.10
+  },
+  "candidate_threshold": 0.35,
+  "status_labels": ["candidate", "uncertain", "no_convincing_candidate", "incomplete"],
+  "score_note": "The weighted score is a deterministic prioritization heuristic, not a calibrated probability."
+}
