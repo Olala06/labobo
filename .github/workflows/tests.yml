@@ -28,16 +28,20 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Download and verify portable Python
-        shell: powershell
-        run: ./scripts/bootstrap-python.ps1
-      - name: Run tests with portable Python
-        shell: powershell
-        run: ./.runtime/python-3.14.10/python.exe -m unittest discover -s tests -v
-      - name: Run sample analysis
+      - name: Prepare portable Python with same launcher as Start.cmd
         shell: powershell
         run: |
-          ./.runtime/python-3.14.10/python.exe -m genomic_detective run --dataset examples/demo_case.vcf --phenotype "арахнодактилия эктопия хрусталика расширение корня аорты высокий рост" --output outputs/demo
+          . ./scripts/python-runtime.ps1
+          $env:GENOMIC_PYTHON = Resolve-GenomicPython -ProjectRoot $PWD -AllowDownload
+          if (-not (Test-Path $env:GENOMIC_PYTHON)) { throw "Python runtime missing" }
+      - name: Run Windows tests and sample analysis through run.ps1
+        shell: powershell
+        run: |
+          ./run.ps1 --version
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          ./.runtime/python-3.14.10/python.exe -m genomic_detective evaluate --reports outputs/demo --expected examples/expected_answers.json --output outputs/demo/evaluation.json
+          python -m unittest discover -s tests -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./run.ps1 run --dataset examples/demo_case.vcf --phenotype "арахнодактилия эктопия хрусталика расширение корня аорты высокий рост" --output outputs/demo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./run.ps1 evaluate --reports outputs/demo --expected examples/expected_answers.json --output outputs/demo/evaluation.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
