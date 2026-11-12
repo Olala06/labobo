@@ -1,1 +1,1 @@
-__pycache__/\n.venv/\nvenv/\n.streamlit/secrets.toml\n*.pyc\n
+__pycache__/\n*.py[cod]\n.venv/\nvenv/\n.runtime/\noutputs/\ndata/\n.streamlit/secrets.toml\n.DS_Store\n
