@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import webbrowser
 from pathlib import Path
@@ -44,8 +45,8 @@ def _build_parser() -> argparse.ArgumentParser:
     evaluation.add_argument("--output", type=Path, default=Path("outputs/evaluation.json"))
 
     server = sub.add_parser("serve", help="Запустить локальный веб-интерфейс.")
-    server.add_argument("--host", default="127.0.0.1")
-    server.add_argument("--port", type=int, default=8765)
+    server.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"))
+    server.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8765")) )
     server.add_argument("--open", action="store_true", help="Открыть браузер после старта сервера.")
     return parser
 
