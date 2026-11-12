@@ -71,7 +71,7 @@ try {
     @(
         "python314.zip"
         "."
-        $PSScriptRoot
+        "..\.."
     ) | Set-Content -Path $PthFile -Encoding ASCII
 
     if (-not (Test-Path $PythonExe)) {
