@@ -11,6 +11,7 @@ import json
 import re
 import shutil
 import sys
+import sysconfig
 import threading
 import urllib.request
 import zipfile
@@ -28,58 +29,142 @@ def _project_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
+DEPENDENCY_WHEELS = [
+    ("annotated-types", "0.7.0"),
+    ("typing-extensions", "4.14.1"),
+    ("typing-inspection", "0.4.2"),
+    ("pydantic-core", "2.46.4"),
+    ("pydantic", "2.13.4"),
+]
+
+
+def _wheel_filename(files: list[dict[str, Any]], package: str) -> dict[str, Any]:
+    wheels = [item for item in files if item.get("filename", "").endswith(".whl")]
+    if package != "pydantic-core":
+        exact_suffix = "-py3-none-any.whl"
+        match = next((item for item in wheels if item["filename"].endswith(exact_suffix)), None)
+        if match:
+            return match
+        raise RuntimeError(f"PyPI не опубликовал совместимый универсальный wheel для {package}.")
+
+    version = f"cp{sys.version_info.major}{sys.version_info.minor}"
+    platform = sysconfig.get_platform().lower()
+    if platform.startswith("win-"):
+        arch = platform.split("-", 1)[1].replace("-", "_")
+        suffix = f"-{version}-{version}-win_{arch}.whl"
+        match = next((item for item in wheels if item["filename"].endswith(suffix)), None)
+    elif platform.startswith("linux-"):
+        arch = platform.split("-", 1)[1]
+        suffix = f"_{arch}.whl"
+        candidates = [
+            item for item in wheels
+            if f"-{version}-{version}-manylinux" in item["filename"]
+            and item["filename"].endswith(suffix)
+        ]
+        # Prefer the oldest glibc baseline for the widest Linux compatibility.
+        candidates.sort(key=lambda item: (
+            0 if "manylinux_2_17" in item["filename"] else
+            1 if "manylinux2014" in item["filename"] else 2,
+            item["filename"],
+        ))
+        match = candidates[0] if candidates else None
+    elif platform.startswith("macosx-"):
+        arch = platform.rsplit("-", 1)[-1].replace("-", "_")
+        candidates = [
+            item for item in wheels
+            if f"-{version}-{version}-macosx_" in item["filename"]
+            and item["filename"].endswith(f"_{arch}.whl")
+        ]
+        match = candidates[0] if candidates else None
+    else:
+        match = None
+
+    if not match:
+        raise RuntimeError(
+            f"Для pydantic-core нет wheel под Python {sys.version_info.major}.{sys.version_info.minor} "
+            f"и платформу {platform}. Установите зависимости командой pip install pyhpo=={PYHPO_VERSION}."
+        )
+    return match
+
+
+def _fetch_wheel(package: str, version: str, staging: Path) -> None:
+    api_url = f"https://pypi.org/pypi/{package}/{version}/json"
+    request = urllib.request.Request(api_url, headers={
+        "User-Agent": "labobo-genomic-detective/0.3",
+        "Accept": "application/json",
+    })
+    with urllib.request.urlopen(request, timeout=45) as response:
+        release = json.loads(response.read().decode("utf-8"))
+
+    if package == "pyhpo":
+        wheel_meta = next((item for item in release.get("urls", [])
+                           if item.get("filename") == f"pyhpo-{version}-py3-none-any.whl"), None)
+        expected_digest = PYHPO_WHEEL_SHA256
+    else:
+        wheel_meta = _wheel_filename(release.get("urls", []), package)
+        expected_digest = str(wheel_meta.get("digests", {}).get("sha256", ""))
+
+    if not wheel_meta or not expected_digest or wheel_meta.get("digests", {}).get("sha256") != expected_digest:
+        raise RuntimeError(f"Не удалось подтвердить официальный wheel {package}=={version} по SHA-256.")
+
+    wheel_request = urllib.request.Request(wheel_meta["url"], headers={
+        "User-Agent": "labobo-genomic-detective/0.3",
+    })
+    with urllib.request.urlopen(wheel_request, timeout=120) as response:
+        wheel = response.read()
+    if hashlib.sha256(wheel).hexdigest() != expected_digest:
+        raise RuntimeError(f"SHA-256 wheel {package}=={version} не совпадает; установка отменена.")
+
+    from io import BytesIO
+    with zipfile.ZipFile(BytesIO(wheel)) as archive:
+        root = staging.resolve()
+        for item in archive.infolist():
+            target = (staging / item.filename).resolve()
+            if target != root and root not in target.parents:
+                raise RuntimeError(f"В wheel {package} найден небезопасный путь.")
+        archive.extractall(staging)
+
+
 def _load_pyhpo():
     try:
         return importlib.import_module("pyhpo")
     except ImportError:
         pass
 
-    # The official Python embeddable distribution has no pip. Install the pure
-    # Python wheel into a project-local directory without altering the machine.
+    # The official Python embeddable distribution has no pip. Install wheels
+    # into one project-local directory without touching the machine-wide Python.
     destination = _project_root() / ".runtime" / "packages" / f"pyhpo-{PYHPO_VERSION}"
-    package_dir = destination / "pyhpo"
-    if not package_dir.is_dir():
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        request = urllib.request.Request(PYPI_JSON, headers={"User-Agent": "labobo-genomic-detective/0.3"})
-        with urllib.request.urlopen(request, timeout=30) as response:
-            release = json.loads(response.read().decode("utf-8"))
-        wheel_meta = next((item for item in release.get("urls", [])
-                           if item.get("filename") == f"pyhpo-{PYHPO_VERSION}-py3-none-any.whl"), None)
-        if not wheel_meta or wheel_meta.get("digests", {}).get("sha256") != PYHPO_WHEEL_SHA256:
-            raise RuntimeError("Не удалось подтвердить официальный архив PyHPO по SHA-256.")
-        wheel_request = urllib.request.Request(wheel_meta["url"],
-            headers={"User-Agent": "labobo-genomic-detective/0.3"})
-        with urllib.request.urlopen(wheel_request, timeout=90) as response:
-            wheel = response.read()
-        if hashlib.sha256(wheel).hexdigest() != PYHPO_WHEEL_SHA256:
-            raise RuntimeError("SHA-256 архива PyHPO не совпадает; установка отменена.")
+    complete_marker = destination / ".installation-complete"
+    if not complete_marker.is_file():
         staging = destination.with_name(destination.name + ".tmp")
         if staging.exists():
             shutil.rmtree(staging)
+        if destination.exists():
+            shutil.rmtree(destination)
         staging.mkdir(parents=True)
         try:
-            from io import BytesIO
-            with zipfile.ZipFile(BytesIO(wheel)) as archive:
-                root = staging.resolve()
-                for item in archive.infolist():
-                    target = (staging / item.filename).resolve()
-                    if target != root and root not in target.parents:
-                        raise RuntimeError("В архиве PyHPO найден небезопасный путь.")
-                archive.extractall(staging)
-            if not (staging / "pyhpo").is_dir():
-                raise RuntimeError("Официальный wheel PyHPO не содержит пакет pyhpo.")
-            if destination.exists():
-                shutil.rmtree(destination)
+            for package, version in DEPENDENCY_WHEELS:
+                _fetch_wheel(package, version, staging)
+            _fetch_wheel("pyhpo", PYHPO_VERSION, staging)
+            if not (staging / "pyhpo").is_dir() or not (staging / "pydantic").is_dir():
+                raise RuntimeError("В загруженных wheels отсутствуют модули PyHPO или Pydantic.")
+            (staging / ".installation-complete").write_text(
+                json.dumps({
+                    "pyhpo": PYHPO_VERSION,
+                    "dependencies": dict(DEPENDENCY_WHEELS),
+                    "python": f"{sys.version_info.major}.{sys.version_info.minor}",
+                    "platform": sysconfig.get_platform(),
+                }, indent=2),
+                encoding="utf-8",
+            )
             staging.replace(destination)
         except Exception:
-            if staging.exists():
-                shutil.rmtree(staging, ignore_errors=True)
+            shutil.rmtree(staging, ignore_errors=True)
             raise
 
     sys.path.insert(0, str(destination))
     importlib.invalidate_caches()
     return importlib.import_module("pyhpo")
-
 
 def _term_id_as_int(term: Any) -> int:
     return int(str(term.id).split(":")[-1])
