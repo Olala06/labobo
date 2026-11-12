@@ -12,9 +12,14 @@ from typing import Iterable
 from .models import CaseInput, PhenotypeHit, Variant
 
 
-def _decode(name: str, raw: bytes) -> str:
+def _decode(name: str, raw: bytes, max_bytes: int = 150 * 1024 * 1024) -> str:
     if name.lower().endswith(".gz"):
-        raw = gzip.decompress(raw)
+        with gzip.GzipFile(fileobj=io.BytesIO(raw)) as stream:
+            raw = stream.read(max_bytes + 1)
+        if len(raw) > max_bytes:
+            raise ValueError(f"Expanded gzip file exceeds the {max_bytes // (1024 * 1024)} MB safety limit.")
+    if len(raw) > max_bytes:
+        raise ValueError(f"File exceeds the {max_bytes // (1024 * 1024)} MB safety limit.")
     return raw.decode("utf-8-sig", errors="replace")
 
 
@@ -181,12 +186,20 @@ def parse_case_files(files: Iterable[tuple[str, bytes]], case_name: str, phenoty
             variants.extend(parsed)
             warnings.extend(issues)
             sources.append(name)
-        elif base.endswith(".tsv") and any(token in base for token in ("variant", "object", "genome", "vcf")):
-            parsed, issues = parse_tsv(_decode(name, raw))
-            variants.extend(parsed)
-            warnings.extend(issues)
+        elif base.endswith(".tsv") and any(token in base for token in ("phenotype", "phenotypes", "hpo")):
+            phenotype_parts.append(_phenotype_text_from_file(name, raw))
             sources.append(name)
-        elif any(token in base for token in ("phenotype", "phenotypes", "hpo")) and base.endswith((".txt", ".tsv", ".json", ".hpo")):
+        elif base.endswith(".tsv"):
+            # Do not rely on a filename convention: an uploaded file called
+            # sample.tsv is still a variant table when it has VCF-like columns.
+            parsed, issues = parse_tsv(_decode(name, raw))
+            if parsed:
+                variants.extend(parsed)
+                warnings.extend(issues)
+                sources.append(name)
+            elif not any(token in base for token in ("phenotype", "phenotypes", "hpo")):
+                warnings.extend(issues)
+        elif any(token in base for token in ("phenotype", "phenotypes", "hpo")) and base.endswith((".txt", ".json", ".hpo")):
             phenotype_parts.append(_phenotype_text_from_file(name, raw))
             sources.append(name)
     if not variants:
