@@ -101,7 +101,7 @@ python -m genomic_detective evaluate --reports outputs/demo --expected examples/
 
 ```sh
 python -m unittest discover -s tests -v
-# Windows PowerShell: .\\validate.ps1
+# Windows PowerShell: .\validate.ps1
 # macOS/Linux: sh validate.sh
 ```
 
