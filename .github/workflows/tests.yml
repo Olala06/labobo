@@ -20,7 +20,7 @@ jobs:
           python -m genomic_detective prepare
       - name: Run sample case and evaluate output
         run: |
-          python -m genomic_detective run --dataset examples/demo_case.vcf --phenotype "арахнодактилия эктопия хрусталика расширение корня аорты высокий рост" --output outputs/demo
+          python -m genomic_detective run --dataset examples/demo_case.vcf --phenotype "HP:0001166 HP:0001083 HP:0002616 HP:0000098" --output outputs/demo
           python -m genomic_detective evaluate --reports outputs/demo --expected examples/expected_answers.json --output outputs/demo/evaluation.json
           python -c "import json; d=json.load(open('outputs/demo/evaluation.json', encoding='utf-8')); assert d['checked'] == 1 and d['top1_accuracy'] == 1.0, d"
 
@@ -46,7 +46,7 @@ jobs:
         run: |
           ./run.ps1 --version
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          ./run.ps1 run --dataset examples/demo_case.vcf --phenotype "арахнодактилия эктопия хрусталика расширение корня аорты высокий рост" --output outputs/demo
+          ./run.ps1 run --dataset examples/demo_case.vcf --phenotype "HP:0001166 HP:0001083 HP:0002616 HP:0000098" --output outputs/demo
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ./run.ps1 evaluate --reports outputs/demo --expected examples/expected_answers.json --output outputs/demo/evaluation.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
