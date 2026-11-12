@@ -14,7 +14,11 @@ function Invoke-GenomicDetective {
         [string]$PythonPath,
         [string[]]$PythonArgs
     )
-    & $PythonPath @PythonArgs -m genomic_detective $Command @CommandArgs
+    $InvokeArgs = @()
+    if ($PythonArgs) { $InvokeArgs += $PythonArgs }
+    $InvokeArgs += @("-m", "genomic_detective", $Command)
+    if ($CommandArgs) { $InvokeArgs += $CommandArgs }
+    & $PythonPath @InvokeArgs
     exit $LASTEXITCODE
 }
 
