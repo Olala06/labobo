@@ -162,7 +162,7 @@ class HPOEngine:
     def rank_genes(self, variants: list[Any], phenotype_terms: list[Any], limit: int = 100) -> list[dict[str, Any]]:
         if not variants or not phenotype_terms:
             return []
-        observed = self.HPOSet(phenotype_terms).child_nodes()
+        observed = self.HPOSet.from_queries([str(term.id) for term in phenotype_terms]).child_nodes()
         symbols: dict[str, list[Any]] = {}
         for variant in variants:
             symbol = (getattr(variant, "gene", None)
@@ -183,10 +183,10 @@ class HPOEngine:
                 continue
             if not 0.0 <= similarity <= 1.0:
                 continue
-            direct_ids = set(getattr(gene, "hpo", set()))
+            direct_ids = {str(term.id) for term in annotated_set}
             matched = []
             for term in phenotype_terms:
-                if _term_id_as_int(term) in direct_ids:
+                if str(term.id) in direct_ids:
                     matched.append(self._term_payload(term))
             transcript_ids = sorted({
                 str(v.info.get("VEP_TRANSCRIPT", {}).get("gene_id"))
