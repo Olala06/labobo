@@ -1,0 +1,6 @@
+##fileformat=VCFv4.2
+##INFO=<ID=SYMBOL,Number=1,Type=String,Description="Gene symbol">
+##INFO=<ID=Consequence,Number=1,Type=String,Description="Variant consequence">
+##INFO=<ID=CLNSIG,Number=1,Type=String,Description="ClinVar clinical significance">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SAMPLE
+15	48700000	.	G	A	99	PASS	SYMBOL=FBN1;Consequence=missense_variant;CLNSIG=Uncertain_significance	GT	0/1
