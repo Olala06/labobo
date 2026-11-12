@@ -19,7 +19,7 @@ def _vep_input(variant: Variant) -> str | None:
     if not chrom or not ref or not alt or "," in alt or alt.startswith("<") or alt == "*":
         return None
     end = variant.pos + len(ref) - 1
-    return f"{chrom} {variant.pos} {end} {ref}/{alt} 1"
+    return f"{chrom} {variant.pos} . {ref} {alt} . . ."
 
 
 def _normalize_input(value: str) -> str:
