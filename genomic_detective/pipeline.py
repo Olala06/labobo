@@ -6,7 +6,7 @@ from typing import Any
 from .dataset import load_case, parse_phenotypes
 from .knowledge import load_knowledge
 from .models import CaseInput
-from .ranking import rank_candidates
+from .ranking import load_ranking_config, rank_candidates
 from .reporting import write_reports
 
 
@@ -23,6 +23,7 @@ def analyze_case(case: CaseInput, knowledge: dict[str, Any] | None = None) -> di
         status = "candidate" if candidates[0].status == "candidate" else "uncertain"
     else:
         status = "no_convincing_candidate"
+    ranking_config = load_ranking_config()
     return {
         "case_name": case.name,
         "status": status,
@@ -34,7 +35,7 @@ def analyze_case(case: CaseInput, knowledge: dict[str, Any] | None = None) -> di
         "variants": [variant.to_dict() for variant in case.variants],
         "source_files": case.source_files,
         "warnings": case.warnings,
-        "weights": {"phenotype": 0.55, "molecular": 0.35, "inheritance": 0.10},
+        "weights": ranking_config["weights"],
         "score_interpretation": "Эвристический исследовательский балл для ранжирования; НЕ вероятность заболевания и НЕ клиническая оценка.",
         "candidates": [candidate.to_dict() for candidate in candidates],
         "limitations": [
