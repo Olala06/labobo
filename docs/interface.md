@@ -2,7 +2,7 @@
 
 ## Локальный веб-интерфейс
 
-Windows: дважды нажмите `Start.cmd` или выполните `.`\`run.ps1 serve --open`.
+Windows: дважды нажмите `Start.cmd` или выполните `./run.ps1 serve --open` в PowerShell.
 
 macOS/Linux:
 
