@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "genomic-detective"
-version = "0.2.0"
+version = "0.3.0"
 description = "Local phenotype-guided genomic prioritization research prototype"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = ["pyhpo==4.0.0"]
 
 [project.scripts]
 genomic-detective = "genomic_detective.cli:main"
