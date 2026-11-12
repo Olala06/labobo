@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import base64
+import binascii
+import hmac
 import html
+import ipaddress
 import json
+import os
 from email import policy
 from email.parser import BytesParser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -56,16 +61,62 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(payload)))
         self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
         self.end_headers()
         self.wfile.write(payload)
 
+    APP_USERNAME = os.environ.get("APP_USERNAME", "admin")
+    APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
+
+    def _authorized(self) -> bool:
+        if not self.APP_PASSWORD:
+            return True
+        header = self.headers.get("Authorization", "")
+        if not header.startswith("Basic "):
+            return False
+        try:
+            decoded = base64.b64decode(header[6:], validate=True)
+            username, password = decoded.split(b":", 1)
+        except (binascii.Error, ValueError):
+            return False
+        return (hmac.compare_digest(username, self.APP_USERNAME.encode("utf-8"))
+                and hmac.compare_digest(password, self.APP_PASSWORD.encode("utf-8")))
+
+    def _require_auth(self) -> bool:
+        if self._authorized():
+            return True
+        self._send(
+            "<h1>Требуется авторизация</h1><p>Введите имя пользователя и пароль владельца сервиса.</p>",
+            401,
+        )
+        # Set the challenge header before the response is sent.
+        return False
+
     def do_GET(self) -> None:
+        if self.path == "/healthz":
+            self._send("ok")
+            return
+        if not self._authorized():
+            self.send_response(401)
+            self.send_header("WWW-Authenticate", 'Basic realm="Genomic Detective", charset="UTF-8"')
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
         if self.path == "/":
             self._send(PAGE)
         else:
             self._send("<h1>404</h1><p>Not found</p>", 404)
 
     def do_POST(self) -> None:
+        if not self._authorized():
+            self.send_response(401)
+            self.send_header("WWW-Authenticate", 'Basic realm="Genomic Detective", charset="UTF-8"')
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
         if self.path != "/analyze":
             self._send("<h1>404</h1>", 404)
             return
@@ -91,9 +142,26 @@ class Handler(BaseHTTPRequestHandler):
         super().log_message(format, *args)
 
 
+def _is_loopback(host: str) -> bool:
+    if host.lower() == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
 def serve(host: str = "127.0.0.1", port: int = 8765) -> None:
+    password = os.environ.get("APP_PASSWORD", "")
+    username = os.environ.get("APP_USERNAME", "admin")
+    if not _is_loopback(host) and len(password) < 16:
+        raise ValueError("For a public host, set APP_PASSWORD to a random secret of at least 16 characters.")
+    Handler.APP_USERNAME = username
+    Handler.APP_PASSWORD = password
     server = ThreadingHTTPServer((host, port), Handler)
     print(f"Геномный детектив доступен: http://{host}:{port}")
+    if password:
+        print(f"Включена HTTP Basic авторизация для пользователя: {username}")
     print("Остановить сервер: Ctrl+C")
     try:
         server.serve_forever()
