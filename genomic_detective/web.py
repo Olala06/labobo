@@ -7,7 +7,7 @@ from email.parser import BytesParser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs
 
-from .dataset import parse_case_files
+from .dataset import uploaded_case
 from .knowledge import load_knowledge
 from .pipeline import analyze_case
 from .reporting import render_html
@@ -80,7 +80,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send("<h1>Не выбран файл</h1><a href='/'>Назад</a>", 400)
             return
         try:
-            case = parse_case_files([(filename, file_content)], filename, phenotype)
+            case = uploaded_case(filename, file_content, phenotype)
             report = analyze_case(case, load_knowledge())
             self._send(render_html(report) + "<p><a href='/'>← Новый анализ</a></p>")
         except Exception as exc:
