@@ -55,9 +55,10 @@ PyHPO поставляет онтологию и генные HPO-ассоциа
 2. В Проводнике Windows нажмите правой кнопкой по ZIP и выберите **Извлечь всё…**. Не запускайте файлы прямо внутри ZIP.
 3. Откройте извлечённую папку и дважды нажмите **`Start.cmd`** (не `README.md` и не `start.ps1`).
 4. При первом запуске программа проверит Python. Если его нет, она автоматически скачает официальный переносимый Python 3.14.10 с python.org, проверит архив по SHA-256 и поместит интерпретатор внутрь папки проекта `.runtime/`. Затем откроет приложение в браузере.
-5. При следующих запусках Python уже будет в папке проекта, поэтому повторная загрузка не нужна.
+5. При первом анализе PyHPO автоматически загрузит закреплённый wheel с PyPI (около 18 МБ), сверит SHA-256 и сохранит его в `.runtime/packages/`.
+6. При следующих запусках Python и PyHPO уже будут в папке проекта; повторная загрузка не нужна.
 
-Устанавливать Python в Windows, менять PATH, запускать `pip install` или иметь права администратора не требуется. Для первой загрузки нужен интернет (официальный архив около 12 МБ) и Windows PowerShell. Запускатель поддерживает Windows x64, ARM64 и 32-bit. Если автоматическая загрузка не удалась, окно покажет конкретную ошибку; проверьте интернет/антивирус или установите Python вручную с [python.org](https://www.python.org/downloads/windows/).
+Устанавливать Python в Windows, менять PATH, запускать `pip install` или иметь права администратора не требуется. Для первой подготовки Python и PyHPO нужен интернет (официальные архивы около 12 и 18 МБ) и Windows PowerShell. Запускатель поддерживает Windows x64, ARM64 и 32-bit. Если автоматическая загрузка не удалась, окно покажет конкретную ошибку; проверьте интернет/антивирус или установите Python вручную с [python.org](https://www.python.org/downloads/windows/).
 
 Механизм такой же, как у [Synth_Hack](https://github.com/NursuUwU/Synth_Hack): короткий `Start.cmd` вызывает `start.ps1`, общий `scripts/python-runtime.ps1` находит или подготавливает Python, а `run.ps1` запускает пакет в изолированном режиме с явным путём к папке проекта. Сам ZIP переносимого Python по умолчанию не хранится в Git-репозитории: он загружается с официального сайта при первом запуске и проверяется по SHA-256.
 
@@ -85,7 +86,7 @@ python -m genomic_detective serve --port 8766 --open
 
 ## Работа с интерфейсом
 
-В веб-форме нет селектора кейсов. Выберите один или несколько файлов `.vcf`, `.vcf.gz`, `.tsv` или `.zip`, укажите симптомы и (при необходимости) добавьте точные HPO-термины через автопоиск. В ZIP можно поместить VCF и TSV вариантов. Отдельный текстовый HPO-файл может называться с включением `phenotype`, `phenotypes` или `hpo`.
+В веб-форме нет селектора кейсов. Выберите один или несколько файлов `.vcf`, `.vcf.gz`, `.tsv` или `.zip`, укажите симптомы и (при необходимости) добавьте точные HPO-термины через автопоиск. В ZIP можно поместить VCF и TSV вариантов. TSV-таблицы распознаются по колонкам, поэтому имя файла произвольное; фенотипический файл может называться с включением `phenotype`, `phenotypes` или `hpo`.
 
 Для точного поиска поддерживаются HPO ID и названия/синонимы PyHPO. Выберите найденный термин из подсказок, чтобы добавить его HPO ID в поле фенотипа. Свободные предложения не угадываются целиком: если фраза не является точным HPO-названием или синонимом, используйте поиск и выберите точные термины.
 
@@ -116,7 +117,7 @@ python -m genomic_detective serve --port 8766 --open
 
 ```powershell
 .\\run.ps1 prepare --dataset examples\\demo_case.vcf --online --assembly GRCh38
-.\\run.ps1 run --dataset examples\\demo_case.vcf --phenotype "HP:0001166 HP:0001083 HP:0002616 HP:0000098" --online --assembly GRCh38 --output outputs\\vep_demo
+.\\run.ps1 run --dataset examples\\demo_case.vcf --phenotype "HP:0001166 HP:0001083 HP:0002616 HP:0000098" --online --assembly GRCh38 --gtex --output outputs\\vep_demo
 ```
 
 Поддерживается только явно указанная сборка **GRCh38**. VEP принимает координаты и REF/ALT вариантов, запросы отправляются пакетами и кэшируются в `data/ensembl-vep.sqlite`. Текст фенотипа и идентификаторы пациента в Ensembl не передаются. GTEx использует символы/Ensembl ID генов и запрашивает `medianGeneExpression` в `gtex_v10`; обращения выполняются последовательно, с SQLite-кэшем на 30 дней, согласно рекомендациям GTEx по низкой частоте запросов. GTEx не получает VCF/фенотип и не влияет на HPO-сходство. Геномные координаты могут быть чувствительными данными — включайте сетевые функции только при наличии разрешения. VEP consequence не доказывает патогенность; тканевая экспрессия не является доказательством причинности. Ссылки: [Ensembl VEP REST API](https://rest.ensembl.org/documentation/info/vep_region_post), [PyHPO 4.0](https://pyhpo.readthedocs.io/), [GTEx API v2](https://gtexportal.org/home/apiPage).
@@ -126,6 +127,8 @@ python -m genomic_detective serve --port 8766 --open
 ```sh
 python -m genomic_detective prepare --dataset examples/demo_case.vcf
 python -m genomic_detective run --dataset examples/demo_case.vcf --phenotype "HP:0001166 HP:0001083 HP:0002616 HP:0000098" --output outputs/demo
+# С дополнительной тканевой экспрессией GTEx (требуется интернет):
+python -m genomic_detective run --dataset patient.vcf --phenotype "HP:0002650 HP:0001166" --gtex --output outputs/patient
 python -m genomic_detective serve --open
 ```
 
@@ -157,7 +160,7 @@ python -m unittest discover -s tests -v
 
 ### ZIP и фенотипы
 
-ZIP читается в памяти, без распаковки файлов по путям на диске. Фенотипы могут задаваться текстовым полем интерфейса или файлом, имя которого содержит `phenotype`, `phenotypes` либо `hpo`. Для сопоставления используются только термины из локальной базы и HPO ID.
+ZIP читается в памяти, без распаковки файлов по путям на диске. Фенотипы могут задаваться текстовым полем интерфейса или файлом, имя которого содержит `phenotype`, `phenotypes` либо `hpo`. Для сопоставления используются HPO ID и названия/синонимы из PyHPO; PyHPO рассчитывает сходство фенотипического профиля с аннотациями генов.
 
 ## Результаты
 
@@ -179,24 +182,26 @@ ZIP читается в памяти, без распаковки файлов �
 ## Архитектура
 
 ```text
-VCF / VCF.GZ / TSV / ZIP + фенотип
+VCF / VCF.GZ / TSV / ZIP + текст/HPO
                  |
           dataset.py (парсер)
                  |
-       knowledge.py (словарь)
+         PyHPO Ontology
                  |
-        pipeline.py (оркестратор)
-          /          |           \
- phenotype expert  molecular   inheritance
-          \          |           /
-             ranking.py
+       HPOSet similarity
                  |
-     reporting.py: HTML / MD / JSON / TSV
+        Гены-кандидаты
                  |
-          evaluation.py
+   Ensembl VEP (опционально)
+                 |
+       GTEx V10 (опционально)
+                 |
+      HTML / MD / JSON / TSV
 ```
 
 - `genomic_detective/dataset.py` — чтение VCF, TSV, ZIP и фенотипов.
+- `genomic_detective/hpo.py` — PyHPO Ontology, поиск/разрешение HPO-терминов и семантическое ранжирование генов.
+- `genomic_detective/gtex.py` — GTEx Portal API v2, сопоставление GENCODE ID и тканевая медианная экспрессия с SQLite-кэшем.
 - `genomic_detective/annotations.py` — опциональная VEP-аннотация и SQLite-кэш.
 - `genomic_detective/experts.py` — три детерминированных экспертных модуля.
 - `genomic_detective/ranking.py` — взвешенная приоритизация и статусы.
