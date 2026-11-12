@@ -135,6 +135,26 @@ def render_markdown(report: dict[str, Any]) -> str:
                       *[f"- {line}" for line in candidate["explanation"]], "", "**Источники:**"])
         lines.extend([f"- [{source['label']}]({source['url']})" for source in candidate["sources"]])
         lines.append("")
+    gene_candidates = report.get("gene_candidates", [])
+    lines.extend(["## Гены-кандидаты по HPO (PyHPO)", ""])
+    if not gene_candidates:
+        lines.append("Гены не ранжированы. Проверьте распознавание фенотипов и наличие символов генов в файле вариантов.")
+    for index, gene in enumerate(gene_candidates, 1):
+        matched = ", ".join(f"{p.get('label', '')} ({p.get('id', '')})"
+                            for p in gene.get("directly_matched_hpo", [])) or "нет прямых совпадений"
+        lines.extend([
+            f"### {index}. {gene['gene']} — {gene['hpo_similarity_percent']:.1f}/100",
+            "",
+            f"Сходство: {gene.get('similarity_method', 'PyHPO')}. Прямые HPO-совпадения: {matched}.",
+            "",
+        ])
+        gtex = gene.get("gtex") or {}
+        if gtex.get("status") == "available":
+            lines.append("**GTEx — ткани с наибольшей медианной экспрессией (справочно):**")
+            lines.extend([f"- {item['tissue']}: {item['median_tpm']:.3f}" for item in gtex.get("top_tissues", [])])
+            lines.append("")
+        elif gtex:
+            lines.extend([f"GTEx: {gtex.get('reason', 'данные недоступны')}.", ""])
     lines.extend(["## Ограничения", *[f"- {item}" for item in report["limitations"] + report["warnings"]], ""])
     return "\n".join(lines)
 
@@ -158,11 +178,47 @@ def _write_tsv(path: Path, rows: list[dict[str, Any]]) -> None:
         writer = csv.DictWriter(handle, fieldnames=FIELDS, delimiter="\t")
         writer.writeheader()
         writer.writerows(rows)
+def _write_tsv(path: Path, rows: list[dict[str, Any]]) -> None:
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=FIELDS, delimiter="\\t")
+        writer.writeheader()
+        writer.writerows(rows)
+
+GENE_FIELDS = ["case", "rank", "gene", "hpo_similarity", "similarity_method",
+               "direct_hpo_matches", "variants", "gtex_dataset", "top_gtex_tissues"]
+
+
+def _gene_rows(report: dict[str, Any]) -> list[dict[str, Any]]:
+    rows = []
+    for rank, gene in enumerate(report.get("gene_candidates", []), 1):
+        gtex = gene.get("gtex") or {}
+        rows.append({
+            "case": report["case_name"], "rank": rank, "gene": gene.get("gene", ""),
+            "hpo_similarity": gene.get("hpo_similarity", 0),
+            "similarity_method": gene.get("similarity_method", ""),
+            "direct_hpo_matches": "; ".join(
+                f"{item.get('label', '')} ({item.get('id', '')})"
+                for item in gene.get("directly_matched_hpo", [])),
+            "variants": "; ".join(str(item.get("locus", "")) for item in gene.get("variants", [])),
+            "gtex_dataset": gtex.get("dataset", ""),
+            "top_gtex_tissues": "; ".join(
+                f"{item.get('tissue', '')}: {item.get('median_tpm', '')}"
+                for item in gtex.get("top_tissues", [])),
+        })
+    return rows
+
+
+def _write_gene_tsv(path: Path, rows: list[dict[str, Any]]) -> None:
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=GENE_FIELDS, delimiter="\\t")
+        writer.writeheader()
+        writer.writerows(rows)
 
 
 def write_reports(reports: list[dict[str, Any]], output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     all_rows: list[dict[str, Any]] = []
+    all_gene_rows: list[dict[str, Any]] = []
     for index, report in enumerate(reports, 1):
         stem = f"case_{index:02d}"
         (output_dir / f"{stem}.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -171,6 +227,9 @@ def write_reports(reports: list[dict[str, Any]], output_dir: Path) -> None:
         case_rows = _ranking_rows(report)
         all_rows.extend(case_rows)
         _write_tsv(output_dir / f"{stem}_ranking.tsv", case_rows)
+        gene_rows = _gene_rows(report)
+        all_gene_rows.extend(gene_rows)
+        _write_gene_tsv(output_dir / f"{stem}_gene_candidates.tsv", gene_rows)
 
     if reports:
         (output_dir / "run.json").write_text(json.dumps({
@@ -178,6 +237,7 @@ def write_reports(reports: list[dict[str, Any]], output_dir: Path) -> None:
             "incomplete_cases": [r["case_name"] for r in reports if not r["complete"]],
         }, ensure_ascii=False, indent=2), encoding="utf-8")
     _write_tsv(output_dir / "ranking.tsv", all_rows)
+    _write_gene_tsv(output_dir / "gene_candidates.tsv", all_gene_rows)
 
     completed = [report for report in reports if report["complete"]]
     incomplete = [report for report in reports if not report["complete"]]
