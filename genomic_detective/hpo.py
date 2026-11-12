@@ -128,7 +128,7 @@ class HPOEngine:
     def resolve(self, phenotype_text: str) -> dict[str, Any]:
         tokens = re.findall(r"HP:?\d{7}", phenotype_text, flags=re.IGNORECASE)
         chunks = re.split(r"[\n,;]+", phenotype_text)
-        chunks = [part.strip(" 	 .") for part in chunks if part.strip(" \\t .")]
+        chunks = [part.strip(" \t .") for part in chunks if part.strip(" \t .")]
         queries = list(dict.fromkeys(tokens + chunks))
         terms = []
         unmatched = []
