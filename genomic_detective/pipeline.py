@@ -14,7 +14,7 @@ def analyze_case(case: CaseInput, knowledge: dict[str, Any] | None = None) -> di
     knowledge = knowledge or load_knowledge()
     hits = parse_phenotypes(case.phenotype_text, knowledge)
     candidates = rank_candidates(case, hits, knowledge)
-    complete = bool(case.variants) and bool(hits)
+    complete = bool(case.variants) and bool(hits) and not case.warnings
     if not hits:
         status = "incomplete"
     elif not case.variants:
