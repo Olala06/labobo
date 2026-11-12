@@ -35,6 +35,7 @@ def _build_parser() -> argparse.ArgumentParser:
     run.add_argument("--case", default=None, help="Имя случая для отчёта.")
     run.add_argument("--output", type=Path, default=Path("outputs/demo"))
     run.add_argument("--online", action="store_true", help="Получить отсутствующие consequence-аннотации через Ensembl VEP.")
+    run.add_argument("--gtex", action="store_true", help="Получить контекст медианной экспрессии генов в тканях GTEx V10 (не влияет на HPO-рейтинг).")
     run.add_argument("--assembly", choices=["GRCh38"], help="Сборка входного VCF; обязательна при --online.")
     run.add_argument("--cache", type=Path, default=Path("data/ensembl-vep.sqlite"))
     run.add_argument("--batch-size", type=int, default=200)
@@ -83,6 +84,17 @@ def main(argv: list[str] | None = None) -> int:
             if args.case:
                 case.name = args.case
             report = analyze_case(case, knowledge)
+            if args.gtex:
+                from .gtex import GTExProvider
+                report["gtex_warnings"] = GTExProvider().annotate_gene_candidates(
+                    report.get("gene_candidates", []), limit=12
+                )
+                report["warnings"].extend(report["gtex_warnings"])
+                report["gtex_metadata"] = {
+                    "dataset": "gtex_v10",
+                    "api": "GTEx Portal API v2",
+                    "score_contribution": 0,
+                }
             write_reports([report], args.output)
             print(f"Статус: {report['status']}; вариантов: {report['variant_count']}; кандидатов: {len(report['candidates'])}.")
             print(f"Отчёты сохранены в: {args.output.resolve()}")
