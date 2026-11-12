@@ -101,6 +101,8 @@ python -m genomic_detective evaluate --reports outputs/demo --expected examples/
 
 ```sh
 python -m unittest discover -s tests -v
+# Windows PowerShell: .\\validate.ps1
+# macOS/Linux: sh validate.sh
 ```
 
 Коды возврата: **0** — команда завершилась; **2** — вход/случай неполный или не было строк для оценки; **1** — ошибка выполнения/файла.
