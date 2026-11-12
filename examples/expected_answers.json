@@ -1,0 +1,8 @@
+{
+  "cases": {
+    "demo_case": {
+      "condition_id": "marfan_syndrome"
+    }
+  },
+  "notice": "Synthetic tutorial target only; not an external validation dataset."
+}
