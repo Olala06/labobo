@@ -1,6 +1,6 @@
 # Следующие шаги
 
-1. Подключить Ensembl VEP к явной команде online annotation; сохранять версию сборки, release, raw responses, ошибки и SQLite cache.
+1. Сохранять в отчётах версию Ensembl VEP/release и параметры запроса; добавить опциональную аннотацию ClinVar с allele-condition-transcript сопоставлением.
 2. Загрузить версионированные HPO ontology и disease annotations, считать семантическое сходство по графу и учитывать frequency/age только при наличии данных.
 3. Создать reviewable allele-condition-transcript evidence table с HGVS/ALT точным сопоставлением, ClinVar Variation ID, disease ID, review stars, last evaluated date и primary literature.
 4. Добавить семейные данные, segregation, de novo evidence и фазировку; отсутствие этих сведений не заменять предположениями.
