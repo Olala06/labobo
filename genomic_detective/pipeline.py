@@ -84,6 +84,11 @@ def analyze_case(case: CaseInput, knowledge: dict[str, Any] | None = None) -> di
         "unmatched_phenotypes": unmatched_phenotypes,
         "hpo_metadata": hpo_metadata,
         "gene_candidates": gene_candidates,
+        "sources": {
+            "hpo": "PyHPO 4.0.0 / bundled HPO annotations",
+            "gtex": "GTEx Portal API v2 / gtex_v10 (only when explicitly requested)",
+            "vep": "Ensembl VEP REST API (only when explicitly requested)",
+        },
         "unmatched_phenotype_note": None if recognized_phenotypes else "HPO не распознал признаки. Используйте поиск HPO и выберите точные термины; отсутствие совпадения не означает отсутствие фенотипа.",
         "variant_count": len(case.variants),
         "variants": [variant.to_dict() for variant in case.variants],
