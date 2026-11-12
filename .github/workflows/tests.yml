@@ -39,7 +39,7 @@ jobs:
         run: |
           . ./scripts/python-runtime.ps1
           $python = Resolve-GenomicPython -ProjectRoot $PWD
-          & $python -I -c "import sys,unittest; sys.path.insert(0,sys.argv.pop(1)); suite=unittest.defaultTestLoader.discover('tests'); result=unittest.TextTestRunner(verbosity=2).run(suite); sys.exit(0 if result.wasSuccessful() else 1)" $PWD
+          & $python -X utf8 -I -c "import sys,unittest; sys.path.insert(0,sys.argv.pop(1)); suite=unittest.defaultTestLoader.discover('tests'); result=unittest.TextTestRunner(verbosity=2).run(suite); sys.exit(0 if result.wasSuccessful() else 1)" $PWD
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Run analysis and report evaluation through run.ps1
         shell: powershell
