@@ -124,7 +124,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"**Статус:** {report['status']}", "",
         f"> {report['score_interpretation']}", "",
         f"**Вариантов:** {report['variant_count']}", "",
-        "**Распознанные фенотипы:** " + (", ".join(f"{p['label']} ({p['hpo_id']})" for p in report["recognized_phenotypes"]) or "не распознаны"), "",
+        "**Распознанные фенотипы:** " + (", ".join(f"{p['label']} ({p.get('id') or p.get('hpo_id', '')})" for p in report["recognized_phenotypes"]) or "не распознаны"), "",
         "## Рейтинг кандидатов", "",
     ]
     if not report["candidates"]:
