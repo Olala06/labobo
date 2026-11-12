@@ -1,5 +1,8 @@
 import unittest
 
+from genomic_detective.annotations import _vep_input
+from genomic_detective.models import Variant
+
 from genomic_detective.dataset import parse_vcf, parse_phenotypes
 from genomic_detective.knowledge import load_knowledge
 from genomic_detective.models import CaseInput
@@ -21,6 +24,10 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(len(variants), 1)
         self.assertEqual(variants[0].gene, "FBN1")
         self.assertEqual(variants[0].genotype, "0/1")
+
+    def test_vep_request_uses_documented_vcf_like_format(self):
+        variant = Variant("chr7", 100, "A", "G")
+        self.assertEqual(_vep_input(variant), "7 100 . A G . . .")
 
     def test_hpo_id_matching(self):
         hits = parse_phenotypes("HP:0001166", self.knowledge)
