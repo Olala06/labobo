@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "genomic-detective"
+version = "0.2.0"
+description = "Local phenotype-guided genomic prioritization research prototype"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+genomic-detective = "genomic_detective.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["genomic_detective*"]
