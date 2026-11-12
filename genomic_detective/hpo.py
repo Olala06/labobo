@@ -126,16 +126,16 @@ class HPOEngine:
         return result
 
     def resolve(self, phenotype_text: str) -> dict[str, Any]:
-        tokens = re.findall(r"HP:?\\d{7}", phenotype_text, flags=re.IGNORECASE)
-        chunks = re.split(r"[\\n,;]+", phenotype_text)
-        chunks = [part.strip(" \\t .") for part in chunks if part.strip(" \\t .")]
+        tokens = re.findall(r"HP:?\d{7}", phenotype_text, flags=re.IGNORECASE)
+        chunks = re.split(r"[\n,;]+", phenotype_text)
+        chunks = [part.strip(" 	 .") for part in chunks if part.strip(" \\t .")]
         queries = list(dict.fromkeys(tokens + chunks))
         terms = []
         unmatched = []
         seen = set()
         for query in queries[:250]:
             try:
-                term = self.ontology.get_hpo_object(query.replace("HP", "HP", 1))
+                term = self.ontology.get_hpo_object(query)
             except (RuntimeError, TypeError, ValueError, KeyError):
                 # PyHPO's search includes ontology labels and synonyms. Only accept
                 # a unique exact label/synonym match to avoid guessing from prose.
