@@ -178,11 +178,7 @@ def _write_tsv(path: Path, rows: list[dict[str, Any]]) -> None:
         writer = csv.DictWriter(handle, fieldnames=FIELDS, delimiter="\t")
         writer.writeheader()
         writer.writerows(rows)
-def _write_tsv(path: Path, rows: list[dict[str, Any]]) -> None:
-    with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=FIELDS, delimiter="\\t")
-        writer.writeheader()
-        writer.writerows(rows)
+
 
 GENE_FIELDS = ["case", "rank", "gene", "hpo_similarity", "similarity_method",
                "direct_hpo_matches", "variants", "gtex_dataset", "top_gtex_tissues"]
@@ -193,24 +189,30 @@ def _gene_rows(report: dict[str, Any]) -> list[dict[str, Any]]:
     for rank, gene in enumerate(report.get("gene_candidates", []), 1):
         gtex = gene.get("gtex") or {}
         rows.append({
-            "case": report["case_name"], "rank": rank, "gene": gene.get("gene", ""),
+            "case": report["case_name"],
+            "rank": rank,
+            "gene": gene.get("gene", ""),
             "hpo_similarity": gene.get("hpo_similarity", 0),
             "similarity_method": gene.get("similarity_method", ""),
             "direct_hpo_matches": "; ".join(
                 f"{item.get('label', '')} ({item.get('id', '')})"
-                for item in gene.get("directly_matched_hpo", [])),
-            "variants": "; ".join(str(item.get("locus", "")) for item in gene.get("variants", [])),
+                for item in gene.get("directly_matched_hpo", [])
+            ),
+            "variants": "; ".join(
+                str(item.get("locus", "")) for item in gene.get("variants", [])
+            ),
             "gtex_dataset": gtex.get("dataset", ""),
             "top_gtex_tissues": "; ".join(
                 f"{item.get('tissue', '')}: {item.get('median_tpm', '')}"
-                for item in gtex.get("top_tissues", [])),
+                for item in gtex.get("top_tissues", [])
+            ),
         })
     return rows
 
 
 def _write_gene_tsv(path: Path, rows: list[dict[str, Any]]) -> None:
     with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=GENE_FIELDS, delimiter="\\t")
+        writer = csv.DictWriter(handle, fieldnames=GENE_FIELDS, delimiter="\t")
         writer.writeheader()
         writer.writerows(rows)
 
