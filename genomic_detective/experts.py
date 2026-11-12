@@ -27,7 +27,6 @@ def molecular_expert(condition: dict[str, Any], variants: list[Variant]) -> Expe
     genes = {str(gene).upper() for gene in condition.get("genes", [])}
     matches = [variant for variant in variants if variant.gene and variant.gene.upper() in genes]
     evidence: list[str] = []
-    supporting: list[Variant] = []
     for variant in matches:
         locus = f"{variant.chrom}:{variant.pos}:{variant.ref}>{variant.alt}"
         clin = (variant.clinvar or "").lower().replace("_", " ").strip()
@@ -38,19 +37,15 @@ def molecular_expert(condition: dict[str, Any], variants: list[Variant]) -> Expe
             evidence.append(f"{locus} ({variant.gene}): ClinVar benign/likely benign — поддержка гипотезы не добавлена.")
             continue
         if any(marker in clin for marker in PATHOGENIC):
-            supporting.append(variant)
-            evidence.append(f"{locus} ({variant.gene}): в INFO/TSV присутствует pathogenic-категория ClinVar; требуется сверка точного аллеля, болезни, транскрипта и review status.")
+            evidence.append(f"{locus} ({variant.gene}): в источнике указана pathogenic-категория ClinVar, но она не засчитывается без проверки точного ALT-аллеля, конкретного заболевания, транскрипта и review status.")
             continue
         if variant.consequence:
             evidence.append(f"{locus} ({variant.gene}): есть аннотация последствия «{variant.consequence}», но она сама по себе не доказывает патогенность.")
         else:
             evidence.append(f"{locus} ({variant.gene}): найден вариант в гене-кандидате, но классификация/последствие не представлены.")
-    # A weak gene-overlap signal is kept separate from clinical classification.
+    # No clinical molecular score is granted until allele-condition-transcript evidence
+    # has been curated and independently reviewed. Gene overlap is descriptive only.
     score = 0.0
-    if supporting:
-        score = 0.45
-    elif matches:
-        score = 0.10
     if not matches:
         evidence.append("В предоставленных вариантах не обнаружен ген из списка генов данного заболевания (или поле гена отсутствует).")
     return ExpertResult(score, evidence, matched_variants=[
