@@ -9,7 +9,6 @@ import zipfile
 from pathlib import Path
 from typing import Iterable
 
-from .knowledge import load_knowledge
 from .models import CaseInput, PhenotypeHit, Variant
 
 
