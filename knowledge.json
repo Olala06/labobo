@@ -1,0 +1,101 @@
+{
+  "phenotype_terms": [
+    {
+      "label": "арахнодактилия",
+      "aliases": [
+        "arachnodactyly"
+      ],
+      "hpo": "HP:0001166"
+    },
+    {
+      "label": "эктопия хрусталика",
+      "aliases": [
+        "ectopia lentis"
+      ],
+      "hpo": "HP:0001083"
+    },
+    {
+      "label": "расширение корня аорты",
+      "aliases": [
+        "aortic root dilation",
+        "aortic root dilatation"
+      ],
+      "hpo": "HP:0002616"
+    },
+    {
+      "label": "высокий рост",
+      "aliases": [
+        "tall stature"
+      ],
+      "hpo": "HP:0000098"
+    },
+    {
+      "label": "частые инфекции лёгких",
+      "aliases": [
+        "recurrent lung infections"
+      ],
+      "hpo": "HP:0006532"
+    },
+    {
+      "label": "панкреатическая недостаточность",
+      "aliases": [
+        "pancreatic insufficiency"
+      ],
+      "hpo": "HP:0001738"
+    },
+    {
+      "label": "солёный вкус кожи",
+      "aliases": [
+        "salty skin"
+      ],
+      "hpo": "HP:0000979"
+    }
+  ],
+  "conditions": [
+    {
+      "name": "Синдром Марфана",
+      "genes": [
+        "FBN1"
+      ],
+      "phenotypes": [
+        "HP:0001166",
+        "HP:0001083",
+        "HP:0002616",
+        "HP:0000098"
+      ],
+      "summary": "Демонстрационная гипотеза: сочетание скелетных, глазных и сердечно-сосудистых признаков может соответствовать синдрому Марфана. Для реальной оценки необходимы диагностические критерии и экспертная интерпретация.",
+      "sources": [
+        {
+          "label": "GeneReviews: FBN1-Related Marfan Syndrome",
+          "url": "https://www.ncbi.nlm.nih.gov/books/NBK1335/"
+        },
+        {
+          "label": "HPO: Human Phenotype Ontology",
+          "url": "https://hpo.jax.org/"
+        }
+      ]
+    },
+    {
+      "name": "Муковисцидоз",
+      "genes": [
+        "CFTR"
+      ],
+      "phenotypes": [
+        "HP:0006532",
+        "HP:0001738",
+        "HP:0000979"
+      ],
+      "summary": "Демонстрационная гипотеза: рецидивирующие респираторные проявления и признаки панкреатической дисфункции могут встречаться при муковисцидозе. Нужны проверка двух аллелей CFTR, фазы и клиническое подтверждение.",
+      "sources": [
+        {
+          "label": "GeneReviews: Cystic Fibrosis",
+          "url": "https://www.ncbi.nlm.nih.gov/books/NBK1250/"
+        },
+        {
+          "label": "ClinVar",
+          "url": "https://www.ncbi.nlm.nih.gov/clinvar/"
+        }
+      ]
+    }
+  ]
+}
