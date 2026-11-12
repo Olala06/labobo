@@ -1,30 +1,17 @@
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
+. (Join-Path $PSScriptRoot "scripts/python-runtime.ps1")
 
-$PythonCommand = $null
-$PythonArgs = @()
-if (Get-Command py -ErrorAction SilentlyContinue) {
-    & py -3.11 -c "import sys" 2>$null
-    if ($LASTEXITCODE -eq 0) {
-        $PythonCommand = "py"
-        $PythonArgs = @("-3.11")
-    } else {
-        & py -3.10 -c "import sys" 2>$null
-        if ($LASTEXITCODE -eq 0) {
-            $PythonCommand = "py"
-            $PythonArgs = @("-3.10")
-        }
-    }
-}
-if (-not $PythonCommand -and (Get-Command python -ErrorAction SilentlyContinue)) {
-    & python -c "import sys; raise SystemExit(0 if sys.version_info >= (3,10) else 1)" 2>$null
-    if ($LASTEXITCODE -eq 0) { $PythonCommand = "python" }
-}
-if (-not $PythonCommand) { throw "Python 3.10+ was not found." }
+$env:GENOMIC_PYTHON = Resolve-GenomicPython -ProjectRoot $PSScriptRoot -AllowDownload
 
-& $PythonCommand @PythonArgs -m unittest discover -s tests -v
+& (Join-Path $PSScriptRoot "run.ps1") --version
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-& $PythonCommand @PythonArgs -m genomic_detective --version
+
+& (Join-Path $PSScriptRoot "run.ps1") prepare
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-& $PythonCommand @PythonArgs -m genomic_detective prepare
+
+& (Join-Path $PSScriptRoot "run.ps1") run --dataset examples/demo_case.vcf --phenotype "арахнодактилия эктопия хрусталика расширение корня аорты высокий рост" --output outputs/demo
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+& (Join-Path $PSScriptRoot "run.ps1") evaluate --reports outputs/demo --expected examples/expected_answers.json --output outputs/demo/evaluation.json
 exit $LASTEXITCODE
