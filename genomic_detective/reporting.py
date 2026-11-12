@@ -7,6 +7,10 @@ from pathlib import Path
 from typing import Any
 
 
+FIELDS = ["case", "rank", "condition", "genes", "score_0_to_100", "status",
+          "phenotype_score", "molecular_score", "inheritance_score"]
+
+
 def _candidate_html(candidate: dict[str, Any]) -> str:
     evidence = "".join(f"<li>{html.escape(line)}</li>" for line in candidate["explanation"])
     sources = "".join(
@@ -62,30 +66,58 @@ def render_markdown(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _ranking_rows(report: dict[str, Any]) -> list[dict[str, Any]]:
+    rows = []
+    for rank, candidate in enumerate(report["candidates"], 1):
+        rows.append({
+            "case": report["case_name"], "rank": rank,
+            "condition": candidate["name"], "genes": ",".join(candidate["genes"]),
+            "score_0_to_100": candidate["score_0_to_100"], "status": candidate["status"],
+            "phenotype_score": candidate["experts"]["phenotype"]["score"],
+            "molecular_score": candidate["experts"]["molecular"]["score"],
+            "inheritance_score": candidate["experts"]["inheritance"]["score"],
+        })
+    return rows
+
+
+def _write_tsv(path: Path, rows: list[dict[str, Any]]) -> None:
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=FIELDS, delimiter="\t")
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def write_reports(reports: list[dict[str, Any]], output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
-    all_rows = []
+    all_rows: list[dict[str, Any]] = []
     for index, report in enumerate(reports, 1):
         stem = f"case_{index:02d}"
         (output_dir / f"{stem}.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         (output_dir / f"{stem}.md").write_text(render_markdown(report), encoding="utf-8")
         (output_dir / f"{stem}.html").write_text(render_html(report), encoding="utf-8")
-        for candidate in report["candidates"]:
-            all_rows.append({
-                "case": report["case_name"], "rank": len([r for r in all_rows if r["case"] == report["case_name"]]) + 1,
-                "condition": candidate["name"], "genes": ",".join(candidate["genes"]),
-                "score_0_to_100": candidate["score_0_to_100"], "status": candidate["status"],
-                "phenotype_score": candidate["experts"]["phenotype"]["score"],
-                "molecular_score": candidate["experts"]["molecular"]["score"],
-                "inheritance_score": candidate["experts"]["inheritance"]["score"],
-            })
+        case_rows = _ranking_rows(report)
+        all_rows.extend(case_rows)
+        _write_tsv(output_dir / f"{stem}_ranking.tsv", case_rows)
+
     if reports:
         (output_dir / "run.json").write_text(json.dumps({
             "cases": [{"name": r["case_name"], "status": r["status"], "complete": r["complete"]} for r in reports],
             "incomplete_cases": [r["case_name"] for r in reports if not r["complete"]],
         }, ensure_ascii=False, indent=2), encoding="utf-8")
-    with (output_dir / "ranking.tsv").open("w", encoding="utf-8", newline="") as handle:
-        fields = ["case", "rank", "condition", "genes", "score_0_to_100", "status", "phenotype_score", "molecular_score", "inheritance_score"]
-        writer = csv.DictWriter(handle, fieldnames=fields, delimiter="\t")
-        writer.writeheader()
-        writer.writerows(all_rows)
+    _write_tsv(output_dir / "ranking.tsv", all_rows)
+
+    completed = [report for report in reports if report["complete"]]
+    incomplete = [report for report in reports if not report["complete"]]
+    if completed:
+        with (output_dir / "predictions.tsv").open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.writer(handle, delimiter="\t")
+            writer.writerow(["case", "prediction", "status"])
+            for report in completed:
+                top = report["candidates"][0]["condition_id"] if report["candidates"] else "no_causal_variant_in_vcf"
+                writer.writerow([report["case_name"], top, report["status"]])
+    if incomplete:
+        with (output_dir / "predictions.partial.tsv").open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.writer(handle, delimiter="\t")
+            writer.writerow(["case", "status", "reason"])
+            for report in incomplete:
+                writer.writerow([report["case_name"], report["status"], "Incomplete data or unmatched phenotype"])
