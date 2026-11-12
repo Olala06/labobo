@@ -3,10 +3,10 @@ import unittest
 from genomic_detective.annotations import _vep_input
 from genomic_detective.models import Variant
 
-from genomic_detective.dataset import parse_vcf, parse_phenotypes
+from genomic_detective.dataset import parse_vcf, parse_phenotypes, parse_case_files
 from genomic_detective.knowledge import load_knowledge
-from genomic_detective.models import CaseInput
-from genomic_detective.pipeline import analyze_case
+from genomic_detective.models import CaseInput, Variant
+from genomic_detective.pipeline import analyze_case\nfrom genomic_detective.web import PAGE\nfrom genomic_detective.gtex import GTExProvider
 
 
 class PipelineTests(unittest.TestCase):
@@ -49,6 +49,48 @@ class PipelineTests(unittest.TestCase):
         case = CaseInput("test", [], "неизвестные признаки", [])
         report = analyze_case(case, self.knowledge)
         self.assertEqual(report["status"], "incomplete")
+
+    def test_generic_tsv_filename_is_parsed_as_variants(self):
+        text = "chrom\\tpos\\tref\\talt\\tgene\\tgenotype\\n17\\t43071077\\tC\\tT\\tBRCA1\\t0/1\\n"
+        case = parse_case_files([("patient_upload.tsv", text.encode("utf-8"))], "upload")
+        self.assertEqual(len(case.variants), 1)
+        self.assertEqual(case.variants[0].gene, "BRCA1")
+
+    def test_upload_page_has_no_preselected_cases(self):
+        self.assertIn('id="files"', PAGE)
+        self.assertIn('multiple required', PAGE)
+        self.assertIn('id="hpo-search"', PAGE)
+        self.assertNotIn('case-select', PAGE)
+        self.assertNotIn('demo_case', PAGE)
+
+    def test_pyhpo_search_and_gene_ranking(self):
+        from genomic_detective.hpo import get_hpo_engine
+        engine = get_hpo_engine()
+        results = engine.search("scoliosis")
+        self.assertTrue(any(item["id"] == "HP:0002650" for item in results))
+        profile = engine.resolve("HP:0002650, HP:0001166")
+        self.assertEqual({item["id"] for item in profile["recognized"]},
+                         {"HP:0002650", "HP:0001166"})
+        gene = next(iter(engine.ontology.genes))
+        term = next(iter(gene.hpo_set()))
+        variant = Variant("1", 100, "A", "G", gene=str(gene.name))
+        ranked = engine.rank_genes([variant], [term])
+        self.assertTrue(any(item["gene"] == str(gene.name) for item in ranked))
+        self.assertTrue(all(0.0 <= item["hpo_similarity"] <= 1.0 for item in ranked))
+
+    def test_gtex_tissue_rows_are_sorted_and_are_context_only(self):
+        provider = GTExProvider()
+        provider._versioned_gene_id = lambda symbol, ids: "ENSG000001.1"
+        provider._request_json = lambda path, params: {
+            "data": [
+                {"tissueSiteDetail": "Blood", "median": 1.5},
+                {"tissueSiteDetail": "Liver", "median": 12.0},
+            ]
+        }
+        result = provider.expression_for_gene("TEST")
+        self.assertEqual(result["status"], "available")
+        self.assertEqual(result["top_tissues"][0]["tissue"], "Liver")
+        self.assertEqual(result["dataset"], "gtex_v10")
 
 
 if __name__ == "__main__":
