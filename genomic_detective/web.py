@@ -267,19 +267,6 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError("В VCF не найдены варианты. " + details)
 
             report = analyze_case(case, load_knowledge())
-            if vep_stats is not None:
-                report["vep"] = vep_stats
-                report["sources"]["vep"] = "Ensembl VEP REST API (GRCh38)"
-                report["gtex_warnings"] = GTExProvider().annotate_gene_candidates(
-                    report.get("gene_candidates", []), limit=12)
-                report["warnings"].extend(report["gtex_warnings"])
-                report["gtex_metadata"] = {
-                    "dataset": "gtex_v10",
-                    "api": "GTEx Portal API v2",
-                    "queried_genes": sum(1 for item in report.get("gene_candidates", [])
-                                         if (item.get("gtex") or {}).get("status") == "available"),
-                    "score_contribution": 0,
-                }
             return self._send(render_html(report))
         except (ValueError, OSError, zipfile.BadZipFile) as exc:
             message = html.escape(str(exc))
