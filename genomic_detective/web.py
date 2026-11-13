@@ -15,9 +15,7 @@ from io import BytesIO
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
-from .annotations import annotate_case
 from .dataset import parse_case_files
-from .gtex import GTExProvider
 from .hpo import get_hpo_engine
 from .knowledge import load_knowledge
 from .pipeline import analyze_case
@@ -75,8 +73,8 @@ footer{max-width:1040px;margin:26px auto 44px;padding:0 22px;color:var(--muted);
 <input id="variant-file" name="variant_file" type="file" accept=".vcf,.gz" required>
 <div id="variant-list" class="file-list">VCF-файл не выбран</div></div>
 </div>
-<label class="optin"><input type="checkbox" name="online" value="1"><span><b>Дополнительно аннотировать варианты через Ensembl VEP и получить контекст GTEx</b><small>Необязательно. Потребуется интернет и подтверждение GRCh38. Для учебного benchmark аннотации VEP/ClinVar/gnomAD из внешних источников не предполагаются; без них соответствующие ячейки будут NA.</small></span></label>
-<label class="optin" style="margin-top:8px"><input type="checkbox" name="assembly" value="GRCh38"><span><b>Подтверждаю, что координаты VCF относятся к GRCh38</b><small>Требуется только при включении внешней аннотации Ensembl VEP.</small></span></label>
+<div class="notice">Учебный набор: 10 случаев (6 development и 4 hidden); на случай приходится одна аутосома, около 400 фоновых SNV GIAB HG002 и дополнительные клинические варианты. Это synthetic composite genotype, не геном пациента; фаза не сохраняется. Веб-анализ не вызывает VEP, ClinVar или gnomAD. Неаннотированные поля показываются как NA — это не означает доброкачественность.</div>
+<div class="notice">Сопоставление варианта с геном возможно, только если ген указан во входном VCF (например, SYMBOL / GENE / CSQ / ANN) или присутствует в курируемой референсной записи. Без функциональной аннотации система не выдумывает consequence. REF по FASTA не проверяется; BED не применяется для фильтрации.</div>
 <div class="actions"><span class="privacy">Не загружайте идентифицируемые медицинские данные на недоверенный или публичный сервер. Учебный рейтинг не является диагнозом.</span><button id="submit" class="primary" type="submit">Проанализировать два файла ↗</button></div>
 <div class="notice">Synthetic composite genotype ≠ геном пациента. Результат — исследовательское ранжирование, а не клиническая экспертиза. Наличие варианта само по себе недостаточно для диагностики.</div>
 </form></main>
@@ -268,13 +266,6 @@ class Handler(BaseHTTPRequestHandler):
                 details = "; ".join(case.warnings[:4])
                 raise ValueError("В VCF не найдены варианты. " + details)
 
-            online = bool(fields.get("online", []))
-            assembly = bool(fields.get("assembly", []))
-            if online and not assembly:
-                raise ValueError("Для внешней аннотации Ensembl VEP необходимо явно подтвердить сборку GRCh38.")
-            vep_stats = None
-            if online:
-                vep_stats = annotate_case(case)
             report = analyze_case(case, load_knowledge())
             if vep_stats is not None:
                 report["vep"] = vep_stats
