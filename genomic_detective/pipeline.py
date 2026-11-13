@@ -245,13 +245,17 @@ def _select_prediction(variant_rows: list[dict[str, Any]]) -> str:
     if len(published_matches) == 1:
         return str(published_matches[0]["variant"])
     if len(top_gene) == 1:
-        return str(top_gene[0]["variant"])
+        priority = _consequence_priority(top_gene[0].get("consequence"))
+        return (
+            str(top_gene[0]["variant"])
+            if priority < 3 else "no_causal_variant_in_vcf"
+        )
     ordered = sorted(top_gene, key=lambda item: (
         _consequence_priority(item.get("consequence")), item["variant"]
     ))
     best_priority = _consequence_priority(ordered[0].get("consequence"))
     second_priority = _consequence_priority(ordered[1].get("consequence"))
-    if best_priority < second_priority:
+    if best_priority < second_priority and best_priority < 3:
         return str(ordered[0]["variant"])
     return "no_causal_variant_in_vcf"
 
