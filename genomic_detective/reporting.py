@@ -193,8 +193,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         "", "## Исключённые HPO-признаки", "",
         *[f"- {p.get('label', '')} ({p.get('id', '')})" for p in report.get("excluded_phenotypes", [])],
         "", "## Рейтинг вариантов", "",
-        "| Ранг | Ген | Вариант | GT | Последствие | gnomAD AF | ClinVar | Совпадения HPO | Excluded-конфликты | Наследование / механизм |",
-        "|---:|---|---|---|---|---|---|---|---|---|",
+        "| Ранг | Ген | Вариант | GT | Последствие | gnomAD AF | ClinVar | Совпадения HPO | Excluded-конфликты | Наследование / механизм | Сверка с опубликованной записью |",
+        "|---:|---|---|---|---|---|---|---|---|---|---|",
     ]
     for item in report.get("variant_candidates", []):
         rank = item.get("rank") if item.get("rank") is not None else "—"
