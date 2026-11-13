@@ -198,7 +198,7 @@ def _build_variant_candidates(
             "rank": None,
             "gene_rank": gene_rank,
             "gene": variant.gene or "не аннотирован",
-            "gene_source": variant.info.get("GENE_SOURCE") or ("VCF annotation" if variant.gene else "not annotated"),
+            "gene_source": variant.info.get("GENE_SOURCE") or ("Ensembl VEP" if variant.info.get("VEP_TRANSCRIPT") else ("VCF annotation" if variant.gene else "not annotated")),
             "variant": _variant_string(variant),
             "genotype": variant.genotype or "NA",
             "genotype_label": _genotype_label(variant.genotype)[0],
@@ -344,7 +344,7 @@ def analyze_case(case: CaseInput, knowledge: dict[str, Any] | None = None) -> di
         "score_interpretation": "HPO-балл используется только для ранжирования вариантов в этом учебном запуске; это не вероятность заболевания и не клиническая классификация.",
         "candidates": [candidate.to_dict() for candidate in candidates],
         "limitations": [
-            "ClinVar/gnomAD/VEP не считаются использованными, если соответствующие значения отсутствуют во входных данных или внешняя аннотация не запрашивалась.",
+            "ClinVar и gnomAD не запрашиваются; Ensembl VEP используется только по отдельному согласию пользователя и после подтверждения GRCh38.",
             "Проверка механизма заболевания ограничена моделью наследования и курируемыми примечаниями; функциональный эффект варианта требует транскриптной и экспериментальной оценки.",
             "Гетерозиготный генотип совместим с некоторыми аутосомно-доминантными моделями, но сам по себе не доказывает патогенность.",
             "Синтетический составной генотип, если он используется в учебном наборе, не является геномом реального пациента.",
