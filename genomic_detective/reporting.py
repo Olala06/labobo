@@ -63,6 +63,7 @@ def _variant_table(report: dict[str, Any]) -> str:
             positive,
             excluded,
             context,
+            str(item.get("published_reference_check", "—")),
         ]
         rows.append("<tr>" + "".join(
             f"<td>{cell if cell.startswith('<code>') else html.escape(cell)}</td>"
@@ -76,7 +77,7 @@ def _variant_table(report: dict[str, Any]) -> str:
         <th>Ранг</th><th>Ген</th><th>Точная запись VCF (GRCh38, 1-based)</th>
         <th>GT</th><th>Последствие</th><th>gnomAD AF</th><th>ClinVar</th>
         <th>Положительные HPO</th><th>Конфликты с excluded HPO</th>
-        <th>Наследование / механизм</th>
+        <th>Наследование / механизм</th><th>Сверка с опубликованной записью</th>
       </tr></thead><tbody>""" + "".join(rows) + "</tbody></table></div>"
 
 
@@ -204,7 +205,7 @@ def render_markdown(report: dict[str, Any]) -> str:
             context += " " + item["mechanism"]
         values = [rank, item.get("gene", ""), item.get("variant", ""), item.get("genotype", ""),
                   item.get("consequence", ""), item.get("gnomad_af", ""), item.get("clinvar", ""),
-                  positive, excluded, context]
+                  positive, excluded, context, item.get("published_reference_check", "—")]
         lines.append("| " + " | ".join(str(value).replace("|", "\\|").replace("\n", " ") for value in values) + " |")
     lines.extend(["", "## Ограничения", *[f"- {item}" for item in report.get("limitations", []) + report.get("warnings", [])], ""])
     return "\n".join(lines)
@@ -236,7 +237,7 @@ GENE_FIELDS = ["case", "rank", "gene", "hpo_similarity", "adjusted_hpo_score",
                "direct_hpo_matches", "excluded_conflicts", "variants"]
 VARIANT_FIELDS = ["case_id", "rank", "gene", "variant", "genotype", "consequence",
                   "gnomad_af", "clinvar", "positive_matches", "excluded_conflicts",
-                  "inheritance_assessment", "mechanism", "interpretation"]
+                  "inheritance_assessment", "mechanism", "published_reference_check", "interpretation"]
 
 
 def _gene_rows(report: dict[str, Any]) -> list[dict[str, Any]]:
