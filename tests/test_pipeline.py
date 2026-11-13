@@ -97,7 +97,7 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(report["variant_candidates"][0]["gene_source"], "exact published reference-allele match")
         self.assertIn("AD:", report["variant_candidates"][0]["inheritance_assessment"])
         self.assertIn("согласуется с опубликованным heterozygous", report["variant_candidates"][0]["published_reference_check"])
-        self.assertIn("Не подтверждён", report["variant_candidates"][0]["mechanism_check"])
+        self.assertIn("сверка с публикацией", report["variant_candidates"][0]["mechanism_check"])
         self.assertEqual(report["prediction"], "chr15:48412568:C:A")
         self.assertIn("3′-конца", report["variant_candidates"][0]["mechanism"])
         self.assertEqual(report["excluded_phenotypes"][0]["id"], "HP:0006532")
