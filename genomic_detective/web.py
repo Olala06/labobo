@@ -230,10 +230,11 @@ class Handler(BaseHTTPRequestHandler):
         try:
             length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
+            length = 0
         if length <= 0 or length > MAX_REQUEST:
             self._send("<h1>Ошибка</h1><p>Размер запроса с двумя файлами должен быть не больше 101 МБ.</p><a href='/'>Назад</a>", 413)
-            self._send("<h1>Ошибка</h1><p>Размер загрузки должен быть от 1 байта до 50 МБ.</p><a href='/'>Назад</a>", 413)
             return
+
         if not self.headers.get("Content-Type", "").lower().startswith("multipart/form-data"):
             self._send("<h1>Ожидается multipart/form-data</h1><a href='/'>Назад</a>", 400)
             return
