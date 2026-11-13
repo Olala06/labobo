@@ -82,6 +82,32 @@
       ]
     },
     {
+      "id": "marfan_lipodystrophy_syndrome",
+      "name": "Марфаноидно-прогероидный синдром с липодистрофией",
+      "omim": "616914",
+      "genes": [
+        "FBN1"
+      ],
+      "inheritance": "AD",
+      "phenotypes": [],
+      "summary": "Редкий FBN1-ассоциированный фенотип с липодистрофией и прогероидными чертами; может включать отдельные марфаноидные проявления. Не следует автоматически отождествлять с классическим синдромом Марфана.",
+      "mechanism": "Для описанной подгруппы вариантов FBN1 сообщалось о вариантах вблизи 3′-конца гена. В PMID:21594993 описан гетерозиготный de novo вариант сайта сплайсинга в последнем интроне (c.8226+1G>T); авторы предположили образование укороченного белка, способного избежать nonsense-mediated decay. Этот механизм нельзя подтвердить только по факту гетерозиготности: требуется транскриптная/функциональная аннотация конкретного варианта.",
+      "sources": [
+        {
+          "label": "PubMed PMID:21594993 — FBN1 splice-site variant and lipodystrophy",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/21594993/"
+        },
+        {
+          "label": "GenCC — FBN1 / Marfan lipodystrophy syndrome, OMIM:616914",
+          "url": "https://thegencc.org/submissions/SGC-112584.1"
+        },
+        {
+          "label": "Genetic models of fibrillinopathies — disease and inheritance overview",
+          "url": "https://academic.oup.com/genetics/article/226/1/iyad189/7424806"
+        }
+      ]
+    },
+    {
       "id": "cystic_fibrosis",
       "name": "Муковисцидоз",
       "genes": [
