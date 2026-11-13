@@ -105,7 +105,14 @@
           "label": "Genetic models of fibrillinopathies — disease and inheritance overview",
           "url": "https://academic.oup.com/genetics/article/226/1/iyad189/7424806"
         }
-      ]
+      ],
+      "reference_variant": {
+        "variant": "chr15:48412568:C:A",
+        "genotype": "heterozygous",
+        "source": "https://pubmed.ncbi.nlm.nih.gov/21594993/",
+        "evidence_type": "Опубликованная Phenopacket-интерпретация, приведённая в условии учебного задания",
+        "note": "Используется только для сверки точной записи и аллельного состояния; не является независимой клинической экспертизой и не доказывает причинность."
+      }
     },
     {
       "id": "cystic_fibrosis",
