@@ -112,7 +112,12 @@
         "source": "https://pubmed.ncbi.nlm.nih.gov/21594993/",
         "evidence_type": "Опубликованная Phenopacket-интерпретация, приведённая в условии учебного задания",
         "note": "Используется только для сверки точной записи и аллельного состояния; не является независимой клинической экспертизой и не доказывает причинность.",
-        "gene": "FBN1"
+        "gene": "FBN1",
+        "hgvs": "NM_000138.5(FBN1):c.8226+1G>T",
+        "genomic_hgvs": "NC_000015.10:g.48412568C>A",
+        "published_consequence": "splice donor variant (intronic +1)",
+        "mechanism_summary": "В публикации описан de novo гетерозиготный splice-site вариант в последнем интроне FBN1; авторы предположили образование укороченного FBN1, который может избегать nonsense-mediated decay.",
+        "coordinate_mapping_source": "https://www.ncbi.nlm.nih.gov/clinvar/RCV000033243/"
       }
     },
     {
