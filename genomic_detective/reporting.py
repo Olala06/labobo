@@ -52,9 +52,12 @@ def _variant_table(report: dict[str, Any]) -> str:
         context = str(item.get("inheritance_assessment") or "Наследование не оценено")
         mechanism = str(item.get("mechanism") or "")
         mechanism_check = str(item.get("mechanism_check") or "Механизм не оценён")
-            context += " Механизм: " + mechanism
+        if mechanism:
             context += " Механизм по литературе: " + mechanism
+        context += " " + mechanism_check
+        cells = [
             str(rank) if rank is not None else "—",
+            f"{float(item.get('hpo_score') or 0):.1f}" if item.get("hpo_score") is not None else "NA",
             str(item.get("gene", "не аннотирован")),
             f"<code>{html.escape(str(item.get('variant', '')))}</code>",
             str(item.get("genotype", "NA")),
@@ -63,7 +66,7 @@ def _variant_table(report: dict[str, Any]) -> str:
             str(item.get("clinvar", "NA")),
             positive,
             excluded,
-            context + " " + mechanism_check,
+            context,
             str(item.get("published_reference_check", "—")),
         ]
         rows.append("<tr>" + "".join(
@@ -80,6 +83,7 @@ def _variant_table(report: dict[str, Any]) -> str:
         <th>Положительные HPO</th><th>Конфликты с excluded HPO</th>
         <th>Наследование / механизм</th><th>Сверка с опубликованной записью</th>
       </tr></thead><tbody>""" + "".join(rows) + "</tbody></table></div>"
+
 
 
 def render_html(report: dict[str, Any]) -> str:
