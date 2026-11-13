@@ -104,11 +104,32 @@ def _build_variant_candidates(
             )
         else:
             interpretation = "Для гена не рассчитано HPO-сходство по доступным аннотациям."
+        reference = next((
+            condition.get("reference_variant")
+            for condition in knowledge.get("conditions", [])
+            if condition.get("reference_variant", {}).get("variant") == _variant_string(variant)
+        ), None)
+        reference_check = "Опубликованная запись для этой координаты не задана."
+        if reference:
+            expected = str(reference.get("genotype", "")).casefold()
+            alt_count = _genotype_label(variant.genotype)[1]
+            if expected == "heterozygous" and alt_count == 1:
+                reference_check = (
+                    "Точная координата совпала; GT согласуется с опубликованным heterozygous. "
+                    "Это сверка с Phenopacket, не клиническая классификация."
+                )
+            elif expected == "heterozygous" and alt_count is None:
+                reference_check = "Координата совпала; GT отсутствует, проверить heterozygous невозможно."
+            elif expected == "heterozygous":
+                reference_check = "Координата совпала, но GT не согласуется с опубликованным heterozygous."
+            else:
+                reference_check = "Точная координата совпала с референсной записью Phenopacket."
+            interpretation += " " + str(reference.get("note", ""))
         gnomad_af = (
             variant.info.get("gnomAD_AF")
             or variant.info.get("gnomADg_AF")
             or variant.info.get("GNOMAD_AF")
-            or "NA (не предоставлено)"
+            or "NA (не использовано / не предоставлено)"
         )
         rows.append({
             "rank": rank,
@@ -124,6 +145,8 @@ def _build_variant_candidates(
             "hpo_score": candidate.get("adjusted_hpo_score_percent"),
             "inheritance_assessment": inheritance,
             "mechanism": mechanism,
+            "published_reference_check": reference_check,
+            "published_reference": reference,
             "interpretation": interpretation,
         })
     return sorted(rows, key=lambda item: (
