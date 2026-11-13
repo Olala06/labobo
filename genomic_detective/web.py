@@ -24,6 +24,7 @@ from .pipeline import analyze_case
 from .reporting import render_html
 
 MAX_UPLOAD = 50 * 1024 * 1024
+MAX_REQUEST = MAX_UPLOAD * 2 + 1024 * 1024
 MAX_EXPANDED = 150 * 1024 * 1024
 MAX_ARCHIVE_ITEMS = 250
 
@@ -231,8 +232,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
-            length = 0
-        if length <= 0 or length > MAX_UPLOAD:
+        if length <= 0 or length > MAX_REQUEST:
+            self._send("<h1>Ошибка</h1><p>Размер запроса с двумя файлами должен быть не больше 101 МБ.</p><a href='/'>Назад</a>", 413)
             self._send("<h1>Ошибка</h1><p>Размер загрузки должен быть от 1 байта до 50 МБ.</p><a href='/'>Назад</a>", 413)
             return
         if not self.headers.get("Content-Type", "").lower().startswith("multipart/form-data"):
@@ -247,8 +248,8 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError("Загрузите ровно один JSON-файл фенотипов и один VCF-файл.")
             phenotype_name, phenotype_payload = phenotype_uploads[0]
             variant_name, variant_payload = variant_uploads[0]
-            phenotype_name = Path(phenotype_name.replace("\\\\", "/")).name
-            variant_name = Path(variant_name.replace("\\\\", "/")).name
+            phenotype_name = Path(phenotype_name.replace(chr(92), "/")).name
+            variant_name = Path(variant_name.replace(chr(92), "/")).name
             if not phenotype_name.lower().endswith(".json"):
                 raise ValueError("Файл фенотипов должен иметь расширение .json.")
             if not variant_name.lower().endswith((".vcf", ".vcf.gz")):
