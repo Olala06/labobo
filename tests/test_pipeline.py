@@ -100,6 +100,7 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("AD:", report["variant_candidates"][0]["inheritance_assessment"])
         self.assertIn("согласуется с опубликованным heterozygous", report["variant_candidates"][0]["published_reference_check"])
         self.assertIn("сверка с публикацией", report["variant_candidates"][0]["mechanism_check"])
+        self.assertEqual(report["variant_candidates"][0]["published_hgvs"], "NM_000138.5(FBN1):c.8226+1G>T")
         self.assertEqual(report["prediction"], "chr15:48412568:C:A")
         self.assertIn("3′-конца", report["variant_candidates"][0]["mechanism"])
         self.assertEqual(report["excluded_phenotypes"][0]["id"], "HP:0006532")
@@ -108,6 +109,7 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("excluded HPO", rendered)
         self.assertIn("Ранг варианта", rendered)
         self.assertIn("Сверка с опубликованной записью", rendered)
+        self.assertIn("Опубликованный HGVS", rendered)
 
     def test_predictions_tsv_has_two_column_benchmark_contract(self):
         report = analyze_case(CaseInput(
@@ -125,6 +127,8 @@ class PipelineTests(unittest.TestCase):
         self.assertIn('name="phenotype_file"', PAGE)
         self.assertIn('id="variant-file"', PAGE)
         self.assertIn('name="variant_file"', PAGE)
+        self.assertIn('name="online"', PAGE)
+        self.assertIn('name="assembly"', PAGE)
         self.assertNotIn('id="hpo-search"', PAGE)
         self.assertNotIn('id="phenotype"', PAGE)
         self.assertNotIn('case-select', PAGE)
@@ -144,6 +148,17 @@ class PipelineTests(unittest.TestCase):
         ranked = engine.rank_genes([variant], [term])
         self.assertTrue(any(item["gene"] == str(gene.name) for item in ranked))
         self.assertTrue(all(0.0 <= item["hpo_similarity"] <= 1.0 for item in ranked))
+
+    def test_prediction_abstains_when_top_gene_variants_are_indistinguishable(self):
+        from genomic_detective.pipeline import _select_prediction
+        rows = [
+            {"variant": "chr1:100:A:G", "gene_rank": 1, "consequence": "NA", "published_reference_compatible": False},
+            {"variant": "chr1:200:C:T", "gene_rank": 1, "consequence": "NA", "published_reference_compatible": False},
+        ]
+        self.assertEqual(_select_prediction(rows), "no_causal_variant_in_vcf")
+        rows[0]["consequence"] = "splice_donor_variant"
+        rows[1]["consequence"] = "missense_variant"
+        self.assertEqual(_select_prediction(rows), "chr1:100:A:G")
 
     def test_gtex_tissue_rows_are_sorted_and_are_context_only(self):
         provider = GTExProvider()
