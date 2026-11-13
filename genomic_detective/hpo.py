@@ -248,10 +248,18 @@ class HPOEngine:
             "unmatched": unmatched,
         }
 
-    def rank_genes(self, variants: list[Any], phenotype_terms: list[Any], limit: int = 100) -> list[dict[str, Any]]:
+    def rank_genes(
+        self,
+        variants: list[Any],
+        phenotype_terms: list[Any],
+        excluded_terms: list[Any] | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
         if not variants or not phenotype_terms:
             return []
+        excluded_terms = excluded_terms or []
         observed = self.HPOSet.from_queries([str(term.id) for term in phenotype_terms]).child_nodes()
+        excluded_by_id = {str(term.id): term for term in excluded_terms}
         symbols: dict[str, list[Any]] = {}
         for variant in variants:
             symbol = (getattr(variant, "gene", None)
@@ -273,10 +281,20 @@ class HPOEngine:
             if not 0.0 <= similarity <= 1.0:
                 continue
             direct_ids = {str(term.id) for term in annotated_set}
-            matched = []
-            for term in phenotype_terms:
-                if str(term.id) in direct_ids:
-                    matched.append(self._term_payload(term))
+            matched = [
+                self._term_payload(term) for term in phenotype_terms
+                if str(term.id) in direct_ids
+            ]
+            # Exclusion conflicts are deliberately conservative: only an exact
+            # HPO annotation match is flagged. Missing annotations are not treated
+            # as evidence that a feature is absent.
+            conflicts = [
+                self._term_payload(term) for term in excluded_terms
+                if str(term.id) in direct_ids
+            ]
+            conflict_fraction = len(conflicts) / max(1, len(excluded_terms))
+            exclusion_penalty = min(0.30, 0.30 * conflict_fraction)
+            adjusted = max(0.0, similarity * (1.0 - exclusion_penalty))
             transcript_ids = sorted({
                 str(v.info.get("VEP_TRANSCRIPT", {}).get("gene_id"))
                 for v in gene_variants
@@ -286,19 +304,25 @@ class HPOEngine:
                 "gene": symbol,
                 "hpo_similarity": round(similarity, 4),
                 "hpo_similarity_percent": round(similarity * 100, 1),
+                "adjusted_hpo_score": round(adjusted, 4),
+                "adjusted_hpo_score_percent": round(adjusted * 100, 1),
+                "exclusion_penalty": round(exclusion_penalty, 4),
                 "similarity_method": "PyHPO funSimAvg / gene information content",
                 "directly_matched_hpo": matched,
+                "excluded_conflicts": conflicts,
                 "annotated_hpo_terms": len(annotated_set),
                 "ensembl_gene_ids": transcript_ids,
                 "variants": [{
                     "locus": f"{v.chrom}:{v.pos}:{v.ref}>{v.alt}",
+                    "variant": f"chr{str(v.chrom).removeprefix('chr')}:{v.pos}:{v.ref}:{v.alt}",
                     "consequence": v.consequence,
                     "genotype": v.genotype,
                 } for v in gene_variants],
                 "gtex": None,
             })
         return sorted(candidates, key=lambda item: (
-            item["hpo_similarity"], len(item["directly_matched_hpo"])
+            item["adjusted_hpo_score"], item["hpo_similarity"],
+            len(item["directly_matched_hpo"])
         ), reverse=True)[:limit]
 
 
