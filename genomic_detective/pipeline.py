@@ -138,7 +138,7 @@ def _build_variant_candidates(
         exclusions = candidate.get("excluded_conflicts", [])
         if not variant.gene:
             interpretation = "Символ гена отсутствует в VCF; вариант показан, но не может быть ранжирован по HPO."
-        elif rank:
+        elif gene_rank:
             interpretation = (
                 f"Ген занимает {rank}-е место по HPO-сходству; балл не является вероятностью "
                 "и не доказывает причинность варианта."
@@ -214,11 +214,13 @@ def _build_variant_candidates(
         _consequence_priority(item.get("consequence")),
         item["variant"],
     ))
-    for index, item in enumerate(rows, 1):
-        item["rank"] = index
-    return rows
-
-
+    next_rank = 1
+    for item in rows:
+        if item.get("gene_rank") is not None:
+            item["rank"] = next_rank
+            next_rank += 1
+        else:
+            item["rank"] = None
 def analyze_case(case: CaseInput, knowledge: dict[str, Any] | None = None) -> dict[str, Any]:
     knowledge = knowledge or load_knowledge()
     analysis_case = _case_with_reference_gene(case, knowledge)
