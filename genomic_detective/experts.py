@@ -62,14 +62,14 @@ def inheritance_expert(condition: dict[str, Any], variants: list[Variant]) -> Ex
     if mode in {"AD", "AUTOSOMAL DOMINANT"}:
         evidence.append("В базе указана аутосомно-доминантная модель; семейная сегрегация и de novo статус по одному VCF не устанавливаются.")
         if any(gt in {"0/1", "1/0", "0|1", "1|0", "1/1", "1|1"} for gt in genotypes):
-            score = 0.25
-            evidence.append("Обнаружен генотип с ALT-аллелем в гене-кандидате; это лишь совместимость с моделью, не доказательство причинности.")
+            score = 0.0
+            evidence.append("Обнаруженный ALT-генотип совместим с моноаллельной моделью, но сам по себе не добавляет балл причинности; нужны независимые доказательства варианта и фенотипа.")
     elif mode in {"AR", "AUTOSOMAL RECESSIVE"}:
         evidence.append("В базе указана аутосомно-рецессивная модель; необходимо подтвердить два причинных аллеля и их фазу (trans).")
         alt_calls = [gt for gt in genotypes if gt and any(token in gt for token in ("1", "2"))]
         if len(alt_calls) >= 2:
-            score = 0.15
-            evidence.append("В гене найдены как минимум две записи с ALT-генотипом; число записей не доказывает два разных аллеля или trans-фазу.")
+            score = 0.0
+            evidence.append("В гене найдены как минимум две записи с ALT-генотипом; это не подтверждает два причинных аллеля или trans-фазу и не добавляет балл причинности.")
     else:
         evidence.append("Модель наследования не указана в курируемой базе; балл наследования не добавлен.")
     if not relevant:
