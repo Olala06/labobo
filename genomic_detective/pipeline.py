@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -78,6 +79,46 @@ def _inheritance_context(
     return assessment, mechanism
 
 
+def _reference_for_variant(variant: Variant, knowledge: dict[str, Any]) -> dict[str, Any] | None:
+    locus = _variant_string(variant)
+    for condition in knowledge.get("conditions", []):
+        reference = condition.get("reference_variant") or {}
+        if reference.get("variant") == locus:
+            return reference
+    return None
+
+
+def _case_with_reference_gene(case: CaseInput, knowledge: dict[str, Any]) -> CaseInput:
+    """Attach a curated gene label only when the complete allele matches exactly."""
+    variants = []
+    for variant in case.variants:
+        reference = _reference_for_variant(variant, knowledge)
+        reference_gene = reference.get("gene") if reference else None
+        if not variant.gene and reference_gene:
+            info = dict(variant.info)
+            info["GENE_SOURCE"] = "exact published reference-allele match"
+            variants.append(replace(variant, gene=str(reference_gene), info=info))
+        else:
+            variants.append(variant)
+    return replace(case, variants=variants)
+
+
+def _consequence_priority(consequence: str | None) -> int:
+    value = str(consequence or "").casefold()
+    groups = [
+        ("transcript_ablation", "splice_acceptor", "splice_donor", "stop_gained",
+         "frameshift", "start_lost"),
+        ("stop_lost", "inframe_insertion", "inframe_deletion", "missense"),
+        ("protein_altering",),
+        ("splice_region", "synonymous"),
+        ("intron", "upstream", "downstream", "intergenic"),
+    ]
+    for index, terms in enumerate(groups):
+        if any(term in value for term in terms):
+            return index
+    return len(groups)
+
+
 def _build_variant_candidates(
     case: CaseInput,
     gene_candidates: list[dict[str, Any]],
@@ -91,7 +132,7 @@ def _build_variant_candidates(
     for variant in case.variants:
         gene = str(variant.gene).upper() if variant.gene else None
         ranked = gene_by_symbol.get(gene or "")
-        rank, candidate = ranked if ranked else (None, {})
+        gene_rank, candidate = ranked if ranked else (None, {})
         inheritance, mechanism = _inheritance_context(variant.gene, variant.genotype, knowledge)
         positives = candidate.get("directly_matched_hpo", [])
         exclusions = candidate.get("excluded_conflicts", [])
@@ -104,11 +145,7 @@ def _build_variant_candidates(
             )
         else:
             interpretation = "Для гена не рассчитано HPO-сходство по доступным аннотациям."
-        reference = next((
-            condition.get("reference_variant")
-            for condition in knowledge.get("conditions", [])
-            if condition.get("reference_variant", {}).get("variant") == _variant_string(variant)
-        ), None)
+        reference = _reference_for_variant(variant, knowledge)
         reference_check = "Опубликованная запись для этой координаты не задана."
         if reference:
             expected = str(reference.get("genotype", "")).casefold()
@@ -150,8 +187,10 @@ def _build_variant_candidates(
             or "NA (не использовано / не предоставлено)"
         )
         rows.append({
-            "rank": rank,
+            "rank": None,
+            "gene_rank": gene_rank,
             "gene": variant.gene or "не аннотирован",
+            "gene_source": variant.info.get("GENE_SOURCE") or ("VCF annotation" if variant.gene else "not annotated"),
             "variant": _variant_string(variant),
             "genotype": variant.genotype or "NA",
             "genotype_label": _genotype_label(variant.genotype)[0],
@@ -168,17 +207,23 @@ def _build_variant_candidates(
             "published_reference": reference,
             "interpretation": interpretation,
         })
-    return sorted(rows, key=lambda item: (
-        item["rank"] is None,
-        item["rank"] if item["rank"] is not None else 10**9,
+    rows.sort(key=lambda item: (
+        item.get("published_reference") is None,
+        item["gene_rank"] is None,
+        item["gene_rank"] if item["gene_rank"] is not None else 10**9,
+        _consequence_priority(item.get("consequence")),
         item["variant"],
     ))
+    for index, item in enumerate(rows, 1):
+        item["rank"] = index
+    return rows
 
 
 def analyze_case(case: CaseInput, knowledge: dict[str, Any] | None = None) -> dict[str, Any]:
     knowledge = knowledge or load_knowledge()
+    analysis_case = _case_with_reference_gene(case, knowledge)
     legacy_hits = parse_phenotypes(case.phenotype_text, knowledge)
-    candidates = rank_candidates(case, legacy_hits, knowledge)
+    candidates = rank_candidates(analysis_case, legacy_hits, knowledge)
 
     hpo_metadata: dict[str, Any] = {
         "library": "PyHPO",
@@ -203,7 +248,7 @@ def analyze_case(case: CaseInput, knowledge: dict[str, Any] | None = None) -> di
         unmatched_phenotypes = profile["unmatched"]
         unmatched_excluded = excluded_profile["unmatched"]
         gene_candidates = engine.rank_genes(
-            case.variants, profile["terms"], excluded_profile["terms"]
+            analysis_case.variants, profile["terms"], excluded_profile["terms"]
         )
         hpo_metadata["status"] = "ready"
         hpo_metadata["recognized_terms"] = len(recognized_phenotypes)
@@ -216,7 +261,7 @@ def analyze_case(case: CaseInput, knowledge: dict[str, Any] | None = None) -> di
     if not recognized_phenotypes:
         recognized_phenotypes = [hit.to_dict() for hit in legacy_hits]
 
-    variant_candidates = _build_variant_candidates(case, gene_candidates, knowledge)
+    variant_candidates = _build_variant_candidates(analysis_case, gene_candidates, knowledge)
     prediction = next(
         (item["variant"] for item in variant_candidates if item.get("rank") is not None),
         "no_causal_variant_in_vcf",
@@ -279,6 +324,7 @@ def analyze_case(case: CaseInput, knowledge: dict[str, Any] | None = None) -> di
         "unmatched_phenotype_note": None if recognized_phenotypes else "Положительные HPO-признаки не распознаны. Проверьте структуру Phenopacket JSON; отрицательные признаки сами по себе не позволяют ранжировать гены.",
         "variant_count": len(case.variants),
         "variants": [variant.to_dict() for variant in case.variants],
+        "analysis_variants": [variant.to_dict() for variant in analysis_case.variants],
         "source_files": case.source_files,
         "warnings": warnings,
         "weights": ranking_config["weights"],
