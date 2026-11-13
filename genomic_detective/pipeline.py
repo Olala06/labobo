@@ -163,12 +163,20 @@ def _build_variant_candidates(
                 reference_check = "Точная координата совпала с референсной записью Phenopacket."
             interpretation += " " + str(reference.get("note", ""))
         mechanism_check = "Курируемый механизм для этого гена не найден."
-        if mechanism:
+        if reference and reference.get("hgvs"):
+            mechanism_check = (
+                f"Для совпавшего опубликованного аллеля {reference['hgvs']} указан "
+                f"{reference.get('published_consequence', 'splice-site вариант')}. "
+                "PubMed описывает splice-site эффект и предполагаемый укороченный FBN1, "
+                "который может избегать NMD. В загруженном VCF нет независимой consequence-аннотации; "
+                "это сверка с публикацией, а не независимый функциональный вызов."
+            )
+        elif mechanism:
             consequence_text = str(variant.consequence or "").casefold()
             if not consequence_text:
                 mechanism_check = (
-                    "Не подтверждён: VCF не содержит consequence/transcript annotation. "
-                    "Для проверки описанного splice-site механизма нужна независимая функциональная аннотация."
+                    "Не подтверждён независимо: VCF не содержит consequence/transcript annotation. "
+                    "Для проверки описанного splice-site механизма нужна функциональная аннотация."
                 )
             elif "splice" in consequence_text or "donor" in consequence_text or "acceptor" in consequence_text:
                 mechanism_check = (
@@ -205,6 +213,8 @@ def _build_variant_candidates(
             "mechanism_check": mechanism_check,
             "published_reference_check": reference_check,
             "published_reference": reference,
+            "published_hgvs": (reference or {}).get("hgvs"),
+            "published_consequence": (reference or {}).get("published_consequence"),
             "interpretation": interpretation,
         })
     rows.sort(key=lambda item: (
