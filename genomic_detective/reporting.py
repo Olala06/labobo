@@ -158,7 +158,7 @@ p{{margin:8px 0}}small,.muted{{color:var(--muted)}}.eyebrow{{text-transform:uppe
 a{{color:#165d9b}}code{{background:#eef2f4;padding:3px 5px;border-radius:5px;overflow-wrap:anywhere}}
 .back{{display:inline-block;margin:8px 0 10px;text-decoration:none;font-weight:650}}.download{{display:inline-block;margin-top:10px;font-weight:700}}
 .table-wrap{{overflow-x:auto;width:100%;border:1px solid var(--line);border-radius:10px}}
-table{{border-collapse:collapse;width:100%;margin:0;min-width:1120px}}th,td{{text-align:left;vertical-align:top;border-bottom:1px solid var(--line);padding:10px 9px;font-size:12px;min-width:90px;max-width:280px;overflow-wrap:anywhere}}
+table{{border-collapse:collapse;width:100%;margin:0;min-width:1320px}}th,td{{text-align:left;vertical-align:top;border-bottom:1px solid var(--line);padding:10px 9px;font-size:12px;min-width:90px;max-width:280px;overflow-wrap:anywhere}}
 th{{position:sticky;top:0;background:#f7faf9;color:var(--muted);font-weight:750;z-index:1}}tr:last-child td{{border-bottom:0}}.results td:nth-child(3){{min-width:190px}}.results td:nth-child(10){{min-width:260px}}
 .phenotype-grid{{display:grid;grid-template-columns:1fr 1fr;gap:18px}}.phenotype-grid>div{{background:#fafcfb;border:1px solid var(--line);border-radius:10px;padding:12px}}
 .candidate h3{{display:flex;justify-content:space-between;gap:12px}}.candidate h3 span{{color:var(--green);white-space:nowrap}}
@@ -208,6 +208,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         context = item.get("inheritance_assessment", "")
         if item.get("mechanism"):
             context += " " + item["mechanism"]
+        context += " " + str(item.get("mechanism_check", ""))
         values = [rank, item.get("hpo_score") if item.get("hpo_score") is not None else "NA", item.get("gene", ""), item.get("variant", ""), item.get("genotype", ""),
                   item.get("consequence", ""), item.get("gnomad_af", ""), item.get("clinvar", ""),
                   positive, excluded, context, item.get("published_reference_check", "—")]
@@ -240,7 +241,7 @@ def _write_tsv(path: Path, rows: list[dict[str, Any]], fields: list[str] | None 
 
 GENE_FIELDS = ["case", "rank", "gene", "hpo_similarity", "adjusted_hpo_score",
                "direct_hpo_matches", "excluded_conflicts", "variants"]
-VARIANT_FIELDS = ["case_id", "rank", "gene", "variant", "genotype", "consequence",
+VARIANT_FIELDS = ["case_id", "rank", "hpo_score", "gene", "variant", "genotype", "consequence",
                   "gnomad_af", "clinvar", "positive_matches", "excluded_conflicts",
                    "inheritance_assessment", "mechanism", "mechanism_check", "published_reference_check", "interpretation"]
 
