@@ -1,4 +1,5 @@
 from __future__ import annotations
+            f"{float(item.get('hpo_score') or 0):.1f}" if item.get("hpo_score") is not None else "NA",
 
 import csv
 import html
@@ -50,9 +51,9 @@ def _variant_table(report: dict[str, Any]) -> str:
         excluded = _hpo_text(item.get("excluded_conflicts", []))
         context = str(item.get("inheritance_assessment") or "Наследование не оценено")
         mechanism = str(item.get("mechanism") or "")
-        if mechanism:
+        mechanism_check = str(item.get("mechanism_check") or "Механизм не оценён")
             context += " Механизм: " + mechanism
-        cells = [
+            context += " Механизм по литературе: " + mechanism
             str(rank) if rank is not None else "—",
             str(item.get("gene", "не аннотирован")),
             f"<code>{html.escape(str(item.get('variant', '')))}</code>",
@@ -62,7 +63,7 @@ def _variant_table(report: dict[str, Any]) -> str:
             str(item.get("clinvar", "NA")),
             positive,
             excluded,
-            context,
+            context + " " + mechanism_check,
             str(item.get("published_reference_check", "—")),
         ]
         rows.append("<tr>" + "".join(
@@ -74,7 +75,7 @@ def _variant_table(report: dict[str, Any]) -> str:
     return """
     <div class="table-wrap"><table class="results">
       <thead><tr>
-        <th>Ранг</th><th>Ген</th><th>Точная запись VCF (GRCh38, 1-based)</th>
+        <th>Ранг</th><th>HPO-балл</th><th>Ген</th><th>Точная запись VCF (GRCh38, 1-based)</th>
         <th>GT</th><th>Последствие</th><th>gnomAD AF</th><th>ClinVar</th>
         <th>Положительные HPO</th><th>Конфликты с excluded HPO</th>
         <th>Наследование / механизм</th><th>Сверка с опубликованной записью</th>
@@ -193,8 +194,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         "", "## Исключённые HPO-признаки", "",
         *[f"- {p.get('label', '')} ({p.get('id', '')})" for p in report.get("excluded_phenotypes", [])],
         "", "## Рейтинг вариантов", "",
-        "| Ранг | Ген | Вариант | GT | Последствие | gnomAD AF | ClinVar | Совпадения HPO | Excluded-конфликты | Наследование / механизм | Сверка с опубликованной записью |",
-        "|---:|---|---|---|---|---|---|---|---|---|---|",
+        "| Ранг | HPO-балл | Ген | Вариант | GT | Последствие | gnomAD AF | ClinVar | Совпадения HPO | Excluded-конфликты | Наследование / механизм | Сверка с публикацией |",
+        "|---:|---:|---|---|---|---|---|---|---|---|---|---|",
     ]
     for item in report.get("variant_candidates", []):
         rank = item.get("rank") if item.get("rank") is not None else "—"
@@ -203,7 +204,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         context = item.get("inheritance_assessment", "")
         if item.get("mechanism"):
             context += " " + item["mechanism"]
-        values = [rank, item.get("gene", ""), item.get("variant", ""), item.get("genotype", ""),
+        values = [rank, item.get("hpo_score") if item.get("hpo_score") is not None else "NA", item.get("gene", ""), item.get("variant", ""), item.get("genotype", ""),
                   item.get("consequence", ""), item.get("gnomad_af", ""), item.get("clinvar", ""),
                   positive, excluded, context, item.get("published_reference_check", "—")]
         lines.append("| " + " | ".join(str(value).replace("|", "\\|").replace("\n", " ") for value in values) + " |")
@@ -237,7 +238,7 @@ GENE_FIELDS = ["case", "rank", "gene", "hpo_similarity", "adjusted_hpo_score",
                "direct_hpo_matches", "excluded_conflicts", "variants"]
 VARIANT_FIELDS = ["case_id", "rank", "gene", "variant", "genotype", "consequence",
                   "gnomad_af", "clinvar", "positive_matches", "excluded_conflicts",
-                  "inheritance_assessment", "mechanism", "published_reference_check", "interpretation"]
+                   "inheritance_assessment", "mechanism", "mechanism_check", "published_reference_check", "interpretation"]
 
 
 def _gene_rows(report: dict[str, Any]) -> list[dict[str, Any]]:
