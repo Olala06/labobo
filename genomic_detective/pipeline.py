@@ -225,7 +225,7 @@ def analyze_case(case: CaseInput, knowledge: dict[str, Any] | None = None) -> di
     if hpo_error:
         warnings.append("PyHPO не загрузился; показан только резервный небольшой словарь фенотипов: " + hpo_error)
     if not any(variant.gene for variant in case.variants):
-        warnings.append("В VCF не указаны символы генов. Включите опциональную VEP-аннотацию GRCh38 либо используйте файл с функциональной аннотацией.")
+        warnings.append("В VCF не указаны символы генов. Добавьте независимую функциональную аннотацию (например, SYMBOL/GENE/CSQ/ANN); в benchmark-режиме внешняя VEP-аннотация не вызывается.")
     if unmatched_phenotypes:
         warnings.append("Не сопоставлены положительные фенотипы: " + ", ".join(unmatched_phenotypes[:20]))
     if unmatched_excluded:
