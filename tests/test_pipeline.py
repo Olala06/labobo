@@ -1,10 +1,14 @@
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
 from genomic_detective.annotations import _vep_input
-from genomic_detective.dataset import parse_vcf, parse_phenotypes, parse_case_files
+from genomic_detective.dataset import parse_vcf, parse_phenotypes, parse_case_files, parse_phenopacket
 from genomic_detective.knowledge import load_knowledge
 from genomic_detective.models import CaseInput, Variant
 from genomic_detective.pipeline import analyze_case
+from genomic_detective.reporting import render_html, write_reports
 from genomic_detective.web import PAGE
 from genomic_detective.gtex import GTExProvider
 
@@ -44,6 +48,8 @@ class PipelineTests(unittest.TestCase):
         top = report["candidates"][0]
         self.assertEqual(top["experts"]["molecular"]["score"], 0.0)
         self.assertEqual(top["name"], "Синдром Марфана")
+        self.assertNotIn("marfan_lipodystrophy_syndrome",
+                         {candidate["condition_id"] for candidate in report["candidates"]})
 
     def test_unknown_phenotype_is_incomplete(self):
         case = CaseInput("test", [], "неизвестные признаки", [])
@@ -56,10 +62,75 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(len(case.variants), 1)
         self.assertEqual(case.variants[0].gene, "BRCA1")
 
-    def test_upload_page_has_no_preselected_cases(self):
-        self.assertIn('id="files"', PAGE)
-        self.assertIn('multiple required', PAGE)
-        self.assertIn('id="hpo-search"', PAGE)
+    def test_phenopacket_parser_separates_positive_and_excluded_features(self):
+        packet = {
+            "id": "case_01",
+            "phenotypicFeatures": [
+                {"type": {"id": "HP:0001166", "label": "Arachnodactyly"}},
+                {"type": {"id": "HP:0006532", "label": "Recurrent respiratory infections"}, "excluded": True},
+            ],
+        }
+        profile = parse_phenopacket(json.dumps(packet))
+        self.assertIn("HP:0001166", profile["positive_text"])
+        self.assertIn("HP:0006532", profile["excluded_text"])
+        self.assertEqual(profile["features"][1]["excluded"], True)
+
+    def test_two_file_case_finds_exact_vcf_record_and_ad_context(self):
+        phenotype = {
+            "id": "case_01",
+            "phenotypicFeatures": [
+                {"type": {"id": "HP:0001166", "label": "Arachnodactyly"}},
+                {"type": {"id": "HP:0006532", "label": "Recurrent respiratory infections"}, "excluded": True},
+            ],
+        }
+        vcf = """##fileformat=VCFv4.2
+#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE
+15\t48412568\t.\tC\tA\t99\tPASS\t.\tGT\t0/1
+"""
+        case = parse_case_files([
+            ("case_01.vcf", vcf.encode("utf-8")),
+            ("case_01_phenotype.json", json.dumps(phenotype).encode("utf-8")),
+        ], "upload")
+        report = analyze_case(case, self.knowledge)
+        self.assertEqual(report["case_id"], "case_01")
+        self.assertEqual(report["variant_candidates"][0]["variant"], "chr15:48412568:C:A")
+        self.assertEqual(report["variant_candidates"][0]["genotype"], "0/1")
+        self.assertEqual(report["variant_candidates"][0]["gene"], "FBN1")
+        self.assertEqual(report["variant_candidates"][0]["gene_source"], "exact published reference-allele match")
+        self.assertIn("AD:", report["variant_candidates"][0]["inheritance_assessment"])
+        self.assertIn("согласуется с опубликованным heterozygous", report["variant_candidates"][0]["published_reference_check"])
+        self.assertIn("сверка с публикацией", report["variant_candidates"][0]["mechanism_check"])
+        self.assertEqual(report["variant_candidates"][0]["published_hgvs"], "NM_000138.5(FBN1):c.8226+1G>T")
+        self.assertEqual(report["prediction"], "chr15:48412568:C:A")
+        self.assertIn("3′-конца", report["variant_candidates"][0]["mechanism"])
+        self.assertEqual(report["excluded_phenotypes"][0]["id"], "HP:0006532")
+        rendered = render_html(report)
+        self.assertIn("chr15:48412568:C:A", rendered)
+        self.assertIn("excluded HPO", rendered)
+        self.assertIn("Ранг варианта", rendered)
+        self.assertIn("Сверка с опубликованной записью", rendered)
+        self.assertIn("Опубликованный HGVS", rendered)
+
+    def test_predictions_tsv_has_two_column_benchmark_contract(self):
+        report = analyze_case(CaseInput(
+            "case_01", [Variant("15", 48412568, "C", "A", gene="FBN1", genotype="0/1")],
+            "HP:0001166", ["case_01.vcf"]
+        ), self.knowledge)
+        with tempfile.TemporaryDirectory() as tmp:
+            write_reports([report], Path(tmp))
+            lines = (Path(tmp) / "predictions.tsv").read_text(encoding="utf-8").splitlines()
+        self.assertEqual(lines[0], "case_id\tprediction")
+        self.assertEqual(lines[1].split("\t")[0], "case_01")
+
+    def test_upload_page_asks_for_two_files_without_manual_phenotype_input(self):
+        self.assertIn('id="phenotype-file"', PAGE)
+        self.assertIn('name="phenotype_file"', PAGE)
+        self.assertIn('id="variant-file"', PAGE)
+        self.assertIn('name="variant_file"', PAGE)
+        self.assertIn('name="online"', PAGE)
+        self.assertIn('name="assembly"', PAGE)
+        self.assertNotIn('id="hpo-search"', PAGE)
+        self.assertNotIn('id="phenotype"', PAGE)
         self.assertNotIn('case-select', PAGE)
         self.assertNotIn('demo_case', PAGE)
 
@@ -77,6 +148,17 @@ class PipelineTests(unittest.TestCase):
         ranked = engine.rank_genes([variant], [term])
         self.assertTrue(any(item["gene"] == str(gene.name) for item in ranked))
         self.assertTrue(all(0.0 <= item["hpo_similarity"] <= 1.0 for item in ranked))
+
+    def test_prediction_abstains_when_top_gene_variants_are_indistinguishable(self):
+        from genomic_detective.pipeline import _select_prediction
+        rows = [
+            {"variant": "chr1:100:A:G", "gene_rank": 1, "consequence": "NA", "published_reference_compatible": False},
+            {"variant": "chr1:200:C:T", "gene_rank": 1, "consequence": "NA", "published_reference_compatible": False},
+        ]
+        self.assertEqual(_select_prediction(rows), "no_causal_variant_in_vcf")
+        rows[0]["consequence"] = "splice_donor_variant"
+        rows[1]["consequence"] = "missense_variant"
+        self.assertEqual(_select_prediction(rows), "chr1:100:A:G")
 
     def test_gtex_tissue_rows_are_sorted_and_are_context_only(self):
         provider = GTExProvider()

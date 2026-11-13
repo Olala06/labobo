@@ -7,7 +7,7 @@ import json
 import re
 import zipfile
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 
 from .models import CaseInput, PhenotypeHit, Variant
 
@@ -103,12 +103,14 @@ def parse_tsv(text: str) -> tuple[list[Variant], list[str]]:
     if not reader.fieldnames:
         return [], ["TSV file has no header row"]
     normalized = {name.lower().strip(): name for name in reader.fieldnames}
+
     def value(row: dict[str, str], *names: str) -> str | None:
         for name in names:
             column = normalized.get(name)
             if column and row.get(column):
                 return row[column].strip()
         return None
+
     variants: list[Variant] = []
     warnings: list[str] = []
     for line_no, row in enumerate(reader, 2):
@@ -132,23 +134,110 @@ def parse_tsv(text: str) -> tuple[list[Variant], list[str]]:
     return variants, warnings
 
 
+def _as_text(value: Any) -> str:
+    if isinstance(value, dict):
+        return str(value.get("label") or value.get("name") or value.get("id") or "")
+    return str(value or "")
+
+
+def parse_phenopacket(text: str) -> dict[str, Any]:
+    """Read Phenopacket-style JSON while retaining positive and excluded HPO features."""
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Файл фенотипов должен быть корректным JSON: {exc.msg}.") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("Ожидается JSON-объект Phenopacket, а не массив или скаляр.")
+
+    features = (
+        payload.get("phenotypicFeatures")
+        or payload.get("phenotypic_features")
+        or payload.get("phenotypes")
+        or payload.get("hpo_terms")
+        or payload.get("terms")
+    )
+    if not isinstance(features, list):
+        raise ValueError("В JSON не найден список phenotypicFeatures / phenotypes.")
+
+    positive: list[str] = []
+    excluded: list[str] = []
+    normalized_features: list[dict[str, Any]] = []
+    seen: set[tuple[str, bool]] = set()
+    for item in features:
+        if isinstance(item, (str, int)):
+            term = item
+            is_excluded = False
+        elif isinstance(item, dict):
+            term = item.get("type") or item.get("term") or item.get("phenotype") or item
+            excluded_value = item.get("excluded", False)
+            is_excluded = (
+                excluded_value is True
+                or str(excluded_value).strip().lower() in {"true", "1", "yes"}
+            )
+        else:
+            continue
+
+        hpo_id = ""
+        label = ""
+        if isinstance(term, dict):
+            hpo_id = str(term.get("id") or term.get("hpo_id") or term.get("hpoId") or "")
+            label = str(term.get("label") or term.get("name") or "")
+        else:
+            token = str(term or "").strip()
+            if re.fullmatch(r"HP:?\d{7}", token, flags=re.IGNORECASE):
+                hpo_id = token if ":" in token else f"HP:{token[2:]}"
+            else:
+                label = token
+        hpo_id = hpo_id.strip()
+        if not hpo_id and not label:
+            continue
+        value = hpo_id or label
+        key = (value.casefold(), is_excluded)
+        if key in seen:
+            continue
+        seen.add(key)
+        target = excluded if is_excluded else positive
+        target.append(value)
+        normalized_features.append({
+            "id": hpo_id or None,
+            "label": label or hpo_id or value,
+            "excluded": is_excluded,
+        })
+
+    if not normalized_features:
+        raise ValueError("В файле не найдено ни одного распознаваемого HPO-признака.")
+
+    subject = payload.get("subject") if isinstance(payload.get("subject"), dict) else {}
+    packet_id = str(payload.get("id") or payload.get("case_id") or subject.get("id") or "")
+    diseases = []
+    for disease in payload.get("diseases", []) if isinstance(payload.get("diseases"), list) else []:
+        if not isinstance(disease, dict):
+            continue
+        term = disease.get("term") or disease.get("disease") or disease
+        if isinstance(term, dict):
+            diseases.append({
+                "id": term.get("id"),
+                "label": term.get("label") or term.get("name") or term.get("id"),
+            })
+
+    return {
+        "positive_text": " ".join(positive),
+        "excluded_text": " ".join(excluded),
+        "features": normalized_features,
+        "metadata": {
+            "phenopacket_id": packet_id or None,
+            "subject_id": subject.get("id"),
+            "diseases": diseases,
+            "schema_version": payload.get("schemaVersion") or payload.get("schema_version"),
+        },
+    }
+
+
 def _phenotype_text_from_file(name: str, raw: bytes) -> str:
     text = _decode(name, raw)
     if name.lower().endswith(".json"):
-        try:
-            payload = json.loads(text)
-            if isinstance(payload, dict):
-                values = payload.get("phenotypes") or payload.get("hpo_terms") or payload.get("terms") or []
-            else:
-                values = payload
-            if isinstance(values, list):
-                return " ".join(
-                    str(item.get("hpo_id") or item.get("id") or item.get("name") or item)
-                    if isinstance(item, dict) else str(item)
-                    for item in values
-                )
-        except (json.JSONDecodeError, TypeError):
-            pass
+        profile = parse_phenopacket(text)
+        return profile["positive_text"] + " " + profile["excluded_text"]
     return text
 
 
@@ -177,6 +266,9 @@ def parse_case_files(files: Iterable[tuple[str, bytes]], case_name: str, phenoty
     variants: list[Variant] = []
     warnings: list[str] = []
     phenotype_parts = [phenotype_text] if phenotype_text.strip() else []
+    excluded_parts: list[str] = []
+    phenotype_features: list[dict[str, Any]] = []
+    metadata: dict[str, Any] = {}
     sources: list[str] = []
     for name, raw in entries:
         lower = name.lower()
@@ -186,25 +278,40 @@ def parse_case_files(files: Iterable[tuple[str, bytes]], case_name: str, phenoty
             variants.extend(parsed)
             warnings.extend(issues)
             sources.append(name)
+        elif base.endswith(".json"):
+            profile = parse_phenopacket(_decode(name, raw))
+            if phenotype_features:
+                raise ValueError("Загрузите только один JSON-файл фенотипов.")
+            phenotype_parts.append(profile["positive_text"])
+            excluded_parts.append(profile["excluded_text"])
+            phenotype_features.extend(profile["features"])
+            metadata.update(profile["metadata"])
+            sources.append(name)
         elif base.endswith(".tsv") and any(token in base for token in ("phenotype", "phenotypes", "hpo")):
             phenotype_parts.append(_phenotype_text_from_file(name, raw))
             sources.append(name)
         elif base.endswith(".tsv"):
-            # Do not rely on a filename convention: an uploaded file called
-            # sample.tsv is still a variant table when it has VCF-like columns.
             parsed, issues = parse_tsv(_decode(name, raw))
             if parsed:
                 variants.extend(parsed)
                 warnings.extend(issues)
                 sources.append(name)
-            elif not any(token in base for token in ("phenotype", "phenotypes", "hpo")):
+            else:
                 warnings.extend(issues)
-        elif any(token in base for token in ("phenotype", "phenotypes", "hpo")) and base.endswith((".txt", ".json", ".hpo")):
+        elif any(token in base for token in ("phenotype", "phenotypes", "hpo")) and base.endswith((".txt", ".hpo")):
             phenotype_parts.append(_phenotype_text_from_file(name, raw))
             sources.append(name)
     if not variants:
         warnings.append("No VCF/variant TSV records were found in the supplied files.")
-    return CaseInput(case_name, variants, "\n".join(phenotype_parts), sources, warnings)
+    if not phenotype_features and not any(item.strip() for item in phenotype_parts):
+        warnings.append("No phenotype terms were found in the supplied files.")
+    if metadata.get("phenopacket_id"):
+        case_name = str(metadata["phenopacket_id"])
+    return CaseInput(
+        case_name, variants, "\n".join(part for part in phenotype_parts if part),
+        sources, warnings, "\n".join(part for part in excluded_parts if part),
+        phenotype_features, metadata,
+    )
 
 
 def load_case(path: Path, phenotype_text: str = "") -> CaseInput:

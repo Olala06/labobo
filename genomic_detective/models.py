@@ -51,6 +51,9 @@ class CaseInput:
     phenotype_text: str
     source_files: list[str]
     warnings: list[str] = field(default_factory=list)
+    excluded_phenotype_text: str = ""
+    phenotype_features: list[dict[str, Any]] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -64,6 +67,7 @@ class Candidate:
     experts: dict[str, ExpertResult]
     sources: list[dict[str, str]]
     explanation: list[str]
+    mechanism: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -77,4 +81,5 @@ class Candidate:
             "experts": {key: value.to_dict() for key, value in self.experts.items()},
             "sources": self.sources,
             "explanation": self.explanation,
+            "mechanism": self.mechanism,
         }

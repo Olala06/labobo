@@ -47,5 +47,6 @@ def rank_candidates(case: CaseInput, hits: list[PhenotypeHit], knowledge: dict[s
             score=score, status=status, experts=experts,
             sources=[{"label": str(s["label"]), "url": str(s["url"])} for s in condition.get("sources", [])],
             explanation=explanation,
+            mechanism=str(condition.get("mechanism")) if condition.get("mechanism") else None,
         ))
     return sorted(candidates, key=lambda item: item.score, reverse=True)

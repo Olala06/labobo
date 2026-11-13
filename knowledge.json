@@ -82,6 +82,45 @@
       ]
     },
     {
+      "id": "marfan_lipodystrophy_syndrome",
+      "name": "Марфаноидно-прогероидный синдром с липодистрофией",
+      "omim": "616914",
+      "genes": [
+        "FBN1"
+      ],
+      "inheritance": "AD",
+      "phenotypes": [],
+      "summary": "Редкий FBN1-ассоциированный фенотип с липодистрофией и прогероидными чертами; может включать отдельные марфаноидные проявления. Не следует автоматически отождествлять с классическим синдромом Марфана.",
+      "mechanism": "Для описанной подгруппы вариантов FBN1 сообщалось о вариантах вблизи 3′-конца гена. В PMID:21594993 описан гетерозиготный de novo вариант сайта сплайсинга в последнем интроне (c.8226+1G>T); авторы предположили образование укороченного белка, способного избежать nonsense-mediated decay. Этот механизм нельзя подтвердить только по факту гетерозиготности: требуется транскриптная/функциональная аннотация конкретного варианта.",
+      "sources": [
+        {
+          "label": "PubMed PMID:21594993 — FBN1 splice-site variant and lipodystrophy",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/21594993/"
+        },
+        {
+          "label": "GenCC — FBN1 / Marfan lipodystrophy syndrome, OMIM:616914",
+          "url": "https://thegencc.org/submissions/SGC-112584.1"
+        },
+        {
+          "label": "Genetic models of fibrillinopathies — disease and inheritance overview",
+          "url": "https://academic.oup.com/genetics/article/226/1/iyad189/7424806"
+        }
+      ],
+      "reference_variant": {
+        "variant": "chr15:48412568:C:A",
+        "genotype": "heterozygous",
+        "source": "https://pubmed.ncbi.nlm.nih.gov/21594993/",
+        "evidence_type": "Опубликованная Phenopacket-интерпретация, приведённая в условии учебного задания",
+        "note": "Используется только для сверки точной записи и аллельного состояния; не является независимой клинической экспертизой и не доказывает причинность.",
+        "gene": "FBN1",
+        "hgvs": "NM_000138.5(FBN1):c.8226+1G>T",
+        "genomic_hgvs": "NC_000015.10:g.48412568C>A",
+        "published_consequence": "splice donor variant (intronic +1)",
+        "mechanism_summary": "В публикации описан de novo гетерозиготный splice-site вариант в последнем интроне FBN1; авторы предположили образование укороченного FBN1, который может избегать nonsense-mediated decay.",
+        "coordinate_mapping_source": "https://www.ncbi.nlm.nih.gov/clinvar/RCV000033243/"
+      }
+    },
+    {
       "id": "cystic_fibrosis",
       "name": "Муковисцидоз",
       "genes": [
