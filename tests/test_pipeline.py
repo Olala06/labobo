@@ -83,7 +83,7 @@ class PipelineTests(unittest.TestCase):
         }
         vcf = """##fileformat=VCFv4.2
 #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE
-15\t48412568\t.\tC\tA\t99\tPASS\tSYMBOL=FBN1\tGT\t0/1
+15\t48412568\t.\tC\tA\t99\tPASS\t.\tGT\t0/1
 """
         case = parse_case_files([
             ("case_01.vcf", vcf.encode("utf-8")),
@@ -93,14 +93,19 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(report["case_id"], "case_01")
         self.assertEqual(report["variant_candidates"][0]["variant"], "chr15:48412568:C:A")
         self.assertEqual(report["variant_candidates"][0]["genotype"], "0/1")
+        self.assertEqual(report["variant_candidates"][0]["gene"], "FBN1")
+        self.assertEqual(report["variant_candidates"][0]["gene_source"], "exact published reference-allele match")
         self.assertIn("AD:", report["variant_candidates"][0]["inheritance_assessment"])
         self.assertIn("согласуется с опубликованным heterozygous", report["variant_candidates"][0]["published_reference_check"])
+        self.assertIn("Не подтверждён", report["variant_candidates"][0]["mechanism_check"])
         self.assertEqual(report["prediction"], "chr15:48412568:C:A")
         self.assertIn("3′-конца", report["variant_candidates"][0]["mechanism"])
         self.assertEqual(report["excluded_phenotypes"][0]["id"], "HP:0006532")
         rendered = render_html(report)
         self.assertIn("chr15:48412568:C:A", rendered)
         self.assertIn("excluded HPO", rendered)
+        self.assertIn("Ранг варианта", rendered)
+        self.assertIn("Сверка с опубликованной записью", rendered)
 
     def test_predictions_tsv_has_two_column_benchmark_contract(self):
         report = analyze_case(CaseInput(
