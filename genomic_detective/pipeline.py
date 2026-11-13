@@ -140,7 +140,7 @@ def _build_variant_candidates(
             interpretation = "Символ гена отсутствует в VCF; вариант показан, но не может быть ранжирован по HPO."
         elif gene_rank:
             interpretation = (
-                f"Ген занимает {rank}-е место по HPO-сходству; балл не является вероятностью "
+                f"Ген занимает {gene_rank}-е место по HPO-сходству; балл не является вероятностью "
                 "и не доказывает причинность варианта."
             )
         else:
@@ -221,6 +221,7 @@ def _build_variant_candidates(
             next_rank += 1
         else:
             item["rank"] = None
+    return rows
 def analyze_case(case: CaseInput, knowledge: dict[str, Any] | None = None) -> dict[str, Any]:
     knowledge = knowledge or load_knowledge()
     analysis_case = _case_with_reference_gene(case, knowledge)
