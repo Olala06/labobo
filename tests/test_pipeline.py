@@ -48,6 +48,8 @@ class PipelineTests(unittest.TestCase):
         top = report["candidates"][0]
         self.assertEqual(top["experts"]["molecular"]["score"], 0.0)
         self.assertEqual(top["name"], "Синдром Марфана")
+        self.assertNotIn("marfan_lipodystrophy_syndrome",
+                         {candidate["condition_id"] for candidate in report["candidates"]})
 
     def test_unknown_phenotype_is_incomplete(self):
         case = CaseInput("test", [], "неизвестные признаки", [])
