@@ -29,8 +29,8 @@ MAX_ARCHIVE_ITEMS = 250
 
 PAGE = """<!doctype html>
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Локальная исследовательская приоритизация генов по фенотипу HPO и контексту экспрессии GTEx">
-<title>Genomic Detective — загрузка генома</title>
+<meta name="description" content="Учебная приоритизация генетических вариантов по Phenopacket JSON и VCF">
+<title>Геномный детектив — загрузка файлов</title>
 <style>
 :root{color-scheme:light;--ink:#172733;--muted:#657784;--line:#dfe8e8;--green:#196c5a;--mint:#eaf4f0;--paper:#f4f7f6}
 *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.55 Inter,system-ui,-apple-system,Segoe UI,sans-serif}
@@ -39,94 +39,68 @@ header{height:70px;padding:0 max(24px,calc((100vw - 1120px)/2));display:flex;ali
 .brand small{display:block;font-size:10px;letter-spacing:.13em;color:var(--muted);font-weight:650;text-transform:uppercase}.local{font-size:12px;color:var(--green);background:var(--mint);padding:7px 11px;border-radius:999px}
 main{max-width:1040px;margin:44px auto;padding:0 22px}.intro{display:flex;justify-content:space-between;gap:26px;align-items:flex-end;margin-bottom:24px}
 .eyebrow{font-size:11px;font-weight:800;letter-spacing:.14em;color:var(--green);text-transform:uppercase;margin:0 0 8px}
-h1{font-size:clamp(28px,4vw,42px);line-height:1.12;letter-spacing:-.04em;margin:0 0 10px}.subtitle{color:var(--muted);max-width:620px;margin:0}.version{font-size:11px;color:var(--muted);white-space:nowrap;padding-bottom:7px}
+h1{font-size:clamp(28px,4vw,42px);line-height:1.12;letter-spacing:-.04em;margin:0 0 10px}.subtitle{color:var(--muted);max-width:680px;margin:0}.version{font-size:11px;color:var(--muted);white-space:nowrap;padding-bottom:7px}
 .panel{background:white;border:1px solid var(--line);border-radius:18px;padding:25px;margin:16px 0;box-shadow:0 8px 28px #193c3210}
 .panel-title{display:flex;gap:12px;align-items:center;margin-bottom:20px}.number{height:30px;width:30px;border-radius:10px;background:var(--mint);color:var(--green);font-weight:800;display:grid;place-items:center;font-size:12px}
 h2{font-size:18px;letter-spacing:-.02em;margin:0}.field-label{display:block;font-weight:720;margin:0 0 8px}
-.dropzone{display:block;border:1.5px dashed #a9c2bb;border-radius:15px;padding:28px 18px;text-align:center;background:#fbfdfc;cursor:pointer;transition:.15s}
+.upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.upload-card{min-width:0}
+.dropzone{display:block;border:1.5px dashed #a9c2bb;border-radius:15px;padding:30px 18px;text-align:center;background:#fbfdfc;cursor:pointer;transition:.15s;min-height:185px;display:flex;flex-direction:column;justify-content:center;align-items:center}
 .dropzone.drag{border-color:var(--green);background:var(--mint)}.upload-icon{font-size:28px;color:var(--green);margin-bottom:7px}
 .dropzone strong{display:block;font-size:15px}.dropzone span{display:block;color:var(--muted);font-size:12px;margin-top:5px}
 input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
-.file-list{font-size:12px;color:var(--muted);padding-top:9px;min-height:22px;overflow-wrap:anywhere}
-textarea,input[type=search]{width:100%;padding:12px 13px;border:1px solid #ccd9d7;border-radius:10px;background:#fff;color:var(--ink);font:inherit;outline:none}
-textarea{min-height:105px;resize:vertical}textarea:focus,input[type=search]:focus{border-color:var(--green);box-shadow:0 0 0 3px #196c5a17}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}.helper{font-size:12px;color:var(--muted);margin:7px 0 0}
-.hpo-search{position:relative;margin-top:14px}.suggestions{position:absolute;z-index:4;top:100%;left:0;right:0;background:white;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 28px #17273320;overflow:hidden;max-height:230px;overflow-y:auto}
-.suggestion{display:block;border:0;border-bottom:1px solid #edf1ef;border-radius:0;background:white;color:var(--ink);padding:10px 12px;text-align:left;font-weight:600;cursor:pointer}.suggestion:hover{background:var(--mint)}.suggestion small{display:block;color:var(--muted);font-weight:500}
+.file-list{font-size:12px;color:var(--muted);padding-top:9px;min-height:30px;overflow-wrap:anywhere}
 .optin{display:flex;gap:11px;align-items:flex-start;padding:14px;border:1px solid var(--line);background:#fbfcfc;border-radius:12px;margin:20px 0 12px}.optin input{margin-top:4px;accent-color:var(--green)}.optin b{display:block;font-size:13px}.optin small{display:block;color:var(--muted);font-size:12px;margin-top:3px}
 .actions{display:flex;justify-content:flex-end;align-items:center;gap:14px;margin-top:18px}
-button.primary{background:var(--green);color:#fff;border:0;border-radius:11px;padding:13px 20px;font-weight:750;cursor:pointer;min-width:190px}
+button.primary{background:var(--green);color:#fff;border:0;border-radius:11px;padding:13px 20px;font-weight:750;cursor:pointer;min-width:210px}
 button.primary:hover{background:#125747}button:disabled{opacity:.55;cursor:wait}
 .privacy{font-size:11px;color:var(--muted);max-width:520px}.notice{margin-top:18px;padding:13px 15px;background:#fff7e7;border-left:3px solid #c48b32;border-radius:8px;color:#69512b;font-size:12px}
 .error{background:#fff0ed;border:1px solid #f3c5ba;border-radius:12px;padding:15px;color:#8d2e1a;white-space:pre-wrap;margin:16px 0}
 footer{max-width:1040px;margin:26px auto 44px;padding:0 22px;color:var(--muted);font-size:11px;display:flex;justify-content:space-between;gap:18px}
-@media(max-width:760px){main{margin:28px auto}.intro{display:block}.version{display:none}.grid{grid-template-columns:1fr}.panel{padding:18px}.actions{display:block}.actions button{width:100%;margin-top:12px}header{padding:0 18px}footer{display:block}}
+@media(max-width:760px){main{margin:28px auto}.intro{display:block}.version{display:none}.upload-grid{grid-template-columns:1fr}.panel{padding:18px}.actions{display:block}.actions button{width:100%;margin-top:12px}header{padding:0 18px}footer{display:block}}
 </style></head>
 <body>
-<header><div class="brand"><div class="mark">✳</div><div>GENOMIC DETECTIVE<small>RESEARCH WORKSPACE</small></div></div><span class="local">● Локальная обработка</span></header>
-<main><section class="intro"><div><p class="eyebrow">ГЕНОМНЫЙ АНАЛИЗ / ЗАГРУЗКА</p><h1>От генетического файла<br>к генам-кандидатам</h1><p class="subtitle">Загрузите VCF/TSV и опишите фенотип. PyHPO сопоставит клинические признаки с генными аннотациями; GTEx добавит контекст экспрессии по тканям.</p></div><span class="version">HPO · GTEx V10 · Ensembl VEP</span></section>
+<header><div class="brand"><div class="mark">✳</div><div>GENOMIC DETECTIVE<small>EDUCATIONAL WORKSPACE</small></div></div><span class="local">● Файлы обрабатываются в памяти</span></header>
+<main><section class="intro"><div><p class="eyebrow">ГЕНОМНЫЙ ДЕТЕКТИВ / УЧЕБНАЯ ВЕРСИЯ</p><h1>Загрузите фенотип и VCF</h1><p class="subtitle">Выберите JSON-файл с Phenopacket/HPO-признаками и VCF с генотипами. Система сопоставит положительные и исключённые признаки, найдёт записи вариантов и сформирует единую таблицу ранжирования.</p></div><span class="version">HPO · VCF · GRCh38</span></section>
 <div id="error" class="error" role="alert" hidden></div>
 <form id="upload-form" class="panel" method="post" action="/analyze" enctype="multipart/form-data">
-<div class="panel-title"><span class="number">01</span><h2>Генетические данные</h2></div>
-<label class="dropzone" id="dropzone" for="files"><div class="upload-icon">⇧</div><strong>Перетащите файлы сюда или нажмите для выбора</strong><span>VCF · VCF.GZ · TSV · ZIP · можно выбрать несколько файлов</span></label>
-<input id="files" name="files" type="file" accept=".vcf,.gz,.tsv,.zip" multiple required>
-<div id="file-list" class="file-list">Файлы ещё не выбраны</div>
-<div style="height:20px"></div>
-<div class="panel-title"><span class="number">02</span><h2>Фенотип пациента</h2></div>
-<div class="grid"><div><label class="field-label" for="phenotype">Клинические признаки / HPO ID</label>
-<textarea id="phenotype" name="phenotype" placeholder="Например: HP:0002650, HP:0001166&#10;или названия признаков на английском, по одному/через запятую"></textarea>
-<p class="helper">Можно вставить HPO ID или название признака. Для точного сопоставления используйте поиск HPO справа.</p></div>
-<div><label class="field-label" for="hpo-search">Найти термин в HPO</label>
-<div class="hpo-search"><input type="search" id="hpo-search" placeholder="Например, scoliosis или HP:0002650" autocomplete="off" maxlength="120">
-<div id="suggestions" class="suggestions" hidden></div></div>
-<p class="helper">Выберите термин из списка — его HPO ID добавится в поле фенотипа.</p>
-<div class="notice">Точный HPO ID предпочтительнее свободной формулировки. Не найденные фразы не трактуются как отсутствие симптома.</div></div></div>
-<label class="optin"><input type="checkbox" name="online" value="1"><span><b>Подключить Ensembl VEP и GTEx (опционально)</b><small>Потребуется интернет. Ensembl получит координаты и аллели вариантов для аннотации; GTEx получит только ID/символы генов. Текст фенотипа этим сервисам не отправляется.</small></span></label>
-<label class="optin" style="margin-top:8px"><input type="checkbox" name="assembly" value="GRCh38"><span><b>Подтверждаю, что VCF использует сборку GRCh38</b><small>Обязательно для внешней аннотации Ensembl VEP. Если не уверены, оставьте онлайн-аннотацию выключенной.</small></span></label>
-<div class="actions"><span class="privacy">Локальный режим не отправляет файлы наружу. Сетевые запросы выполняются только после установки флажка выше.</span><button id="submit" class="primary" type="submit">Проанализировать данные ↗</button></div>
+<div class="panel-title"><span class="number">01</span><h2>Два входных файла для одного случая</h2></div>
+<div class="upload-grid">
+<div class="upload-card"><label class="field-label" for="phenotype-file">Файл фенотипов · JSON</label>
+<label class="dropzone" id="phenotype-drop" for="phenotype-file"><div class="upload-icon">▤</div><strong>Загрузить Phenopacket JSON</strong><span>case_01_phenotype.json · положительные и excluded=true признаки</span></label>
+<input id="phenotype-file" name="phenotype_file" type="file" accept=".json,application/json" required>
+<div id="phenotype-list" class="file-list">Файл фенотипов не выбран</div></div>
+<div class="upload-card"><label class="field-label" for="variant-file">Генетические варианты · VCF</label>
+<label class="dropzone" id="variant-drop" for="variant-file"><div class="upload-icon">⇧</div><strong>Загрузить VCF с генотипами</strong><span>.vcf · .vcf.gz · sample genotype / GT</span></label>
+<input id="variant-file" name="variant_file" type="file" accept=".vcf,.gz" required>
+<div id="variant-list" class="file-list">VCF-файл не выбран</div></div>
+</div>
+<label class="optin"><input type="checkbox" name="online" value="1"><span><b>Дополнительно аннотировать варианты через Ensembl VEP и получить контекст GTEx</b><small>Необязательно. Потребуется интернет и подтверждение GRCh38. Для учебного benchmark аннотации VEP/ClinVar/gnomAD из внешних источников не предполагаются; без них соответствующие ячейки будут NA.</small></span></label>
+<label class="optin" style="margin-top:8px"><input type="checkbox" name="assembly" value="GRCh38"><span><b>Подтверждаю, что координаты VCF относятся к GRCh38</b><small>Требуется только при включении внешней аннотации Ensembl VEP.</small></span></label>
+<div class="actions"><span class="privacy">Не загружайте идентифицируемые медицинские данные на недоверенный или публичный сервер. Учебный рейтинг не является диагнозом.</span><button id="submit" class="primary" type="submit">Проанализировать два файла ↗</button></div>
+<div class="notice">Synthetic composite genotype ≠ геном пациента. Результат — исследовательское ранжирование, а не клиническая экспертиза. Наличие варианта само по себе недостаточно для диагностики.</div>
 </form></main>
-<footer><span>Исследовательский инструмент. Не является медицинским изделием или диагностической системой.</span><span>HPO gene similarity ≠ вероятность заболевания · GTEx ≠ доказательство патогенности</span></footer>
+<footer><span>Геномный детектив — учебная версия</span><span>Положительные и исключённые HPO · точные координаты VCF · проверка GT / inheritance</span></footer>
 <script>
-const files=document.getElementById('files'), fileList=document.getElementById('file-list'), drop=document.getElementById('dropzone');
-function showFiles(){fileList.textContent=files.files.length?Array.from(files.files).map(f=>f.name+' ('+(f.size/1024/1024).toFixed(2)+' MB)').join(' · '):'Файлы ещё не выбраны';}
-files.addEventListener('change',showFiles);
-['dragenter','dragover'].forEach(n=>drop.addEventListener(n,e=>{e.preventDefault();drop.classList.add('drag');}));
-['dragleave','drop'].forEach(n=>drop.addEventListener(n,e=>{e.preventDefault();drop.classList.remove('drag');}));
-drop.addEventListener('drop',e=>{if(e.dataTransfer.files.length){files.files=e.dataTransfer.files;showFiles();}});
-const search=document.getElementById('hpo-search'), suggestions=document.getElementById('suggestions'), phenotype=document.getElementById('phenotype');
-let delay=null, controller=null;
-search.addEventListener('input',()=>{
- clearTimeout(delay); const q=search.value.trim();
- if(q.length<2){suggestions.hidden=true;return;}
- delay=setTimeout(async()=>{
-   if(controller)controller.abort(); controller=new AbortController();
-   try{
-     const response=await fetch('/hpo?q='+encodeURIComponent(q),{signal:controller.signal});
-     const items=await response.json(); suggestions.replaceChildren();
-     if(!response.ok) throw new Error(items.error||'HPO search unavailable');
-     items.forEach(item=>{
-       const button=document.createElement('button');button.type='button';button.className='suggestion';
-       button.textContent=item.label;
-       const small=document.createElement('small');small.textContent=item.id;button.appendChild(small);
-       button.addEventListener('click',()=>{
-         const id=item.id;const current=phenotype.value.trim();
-         const ids=current.split(/[\\s,;]+/).filter(Boolean);
-         if(!ids.includes(id)) phenotype.value=current?(current.replace(/[,;\\s]+$/,'')+', '+id):id;
-         search.value=item.label;suggestions.hidden=true;phenotype.focus();
-       });suggestions.appendChild(button);
-     });
-     suggestions.hidden=!items.length;
-   }catch(error){if(error.name!=='AbortError'){suggestions.replaceChildren();const item=document.createElement('div');item.className='suggestion';item.textContent='Поиск HPO временно недоступен';suggestions.appendChild(item);suggestions.hidden=false;}}
- },250);
-});
-document.addEventListener('click',e=>{if(!e.target.closest('.hpo-search'))suggestions.hidden=true;});
+function bindUpload(inputId,dropId,listId,emptyText){
+ const input=document.getElementById(inputId),drop=document.getElementById(dropId),list=document.getElementById(listId);
+ function show(){const f=input.files[0];list.textContent=f?f.name+' ('+(f.size/1024/1024).toFixed(2)+' MB)':emptyText;}
+ input.addEventListener('change',show);
+ ['dragenter','dragover'].forEach(n=>drop.addEventListener(n,e=>{e.preventDefault();drop.classList.add('drag');}));
+ ['dragleave','drop'].forEach(n=>drop.addEventListener(n,e=>{e.preventDefault();drop.classList.remove('drag');}));
+ drop.addEventListener('drop',e=>{if(e.dataTransfer.files.length){input.files=e.dataTransfer.files;show();}});
+ return input;
+}
+const phenotypeFile=bindUpload('phenotype-file','phenotype-drop','phenotype-list','Файл фенотипов не выбран');
+const variantFile=bindUpload('variant-file','variant-drop','variant-list','VCF-файл не выбран');
 document.getElementById('upload-form').addEventListener('submit',e=>{
  const error=document.getElementById('error');error.hidden=true;
- if(!files.files.length){e.preventDefault();error.textContent='Выберите генетический файл.';error.hidden=false;return;}
- const online=document.querySelector('input[name=online]').checked;
- const assembly=document.querySelector('input[name=assembly]').checked;
+ if(!phenotypeFile.files.length||!variantFile.files.length){e.preventDefault();error.textContent='Загрузите оба файла: Phenopacket JSON и VCF.';error.hidden=false;return;}
+ const phenotype=phenotypeFile.files[0],variant=variantFile.files[0];
+ if(!phenotype.name.toLowerCase().endsWith('.json')){e.preventDefault();error.textContent='Файл фенотипов должен иметь расширение .json.';error.hidden=false;return;}
+ if(!/\.vcf(\.gz)?$/i.test(variant.name)){e.preventDefault();error.textContent='Генетический файл должен иметь расширение .vcf или .vcf.gz.';error.hidden=false;return;}
+ if(phenotype.size>50*1024*1024||variant.size>50*1024*1024){e.preventDefault();error.textContent='Каждый файл должен быть не больше 50 MB.';error.hidden=false;return;}
+ const online=document.querySelector('input[name=online]').checked,assembly=document.querySelector('input[name=assembly]').checked;
  if(online&&!assembly){e.preventDefault();error.textContent='Для Ensembl VEP подтвердите сборку GRCh38.';error.hidden=false;return;}
- if(Array.from(files.files).some(f=>f.size>50*1024*1024)){e.preventDefault();error.textContent='Один из файлов превышает лимит 50 MB.';error.hidden=false;return;}
  document.getElementById('submit').disabled=true;document.getElementById('submit').textContent='Анализируем…';
 });
 </script></body></html>"""
@@ -267,18 +241,31 @@ class Handler(BaseHTTPRequestHandler):
 
         try:
             fields = _parse_multipart(self.headers.get("Content-Type", ""), self.rfile.read(length))
-            uploads = fields.get("files", []) + fields.get("file", [])
-            files = _expand_uploads(uploads)
-            phenotype = fields.get("phenotype", [("", b"")])[0][1].decode("utf-8", errors="replace")
-            if len(phenotype) > 20000:
-                raise ValueError("Поле фенотипа превышает 20 000 символов.")
-            if not any(name.lower().endswith((".vcf", ".vcf.gz", ".tsv")) for name, _ in files):
-                raise ValueError("Нужен хотя бы один файл VCF, VCF.GZ или TSV с вариантами.")
-            analysis_name = Path(files[0][0]).stem[:80] or "uploaded_genome"
-            case = parse_case_files(files, analysis_name, phenotype)
+            phenotype_uploads = fields.get("phenotype_file", [])
+            variant_uploads = fields.get("variant_file", [])
+            if len(phenotype_uploads) != 1 or len(variant_uploads) != 1:
+                raise ValueError("Загрузите ровно один JSON-файл фенотипов и один VCF-файл.")
+            phenotype_name, phenotype_payload = phenotype_uploads[0]
+            variant_name, variant_payload = variant_uploads[0]
+            phenotype_name = Path(phenotype_name.replace("\\\\", "/")).name
+            variant_name = Path(variant_name.replace("\\\\", "/")).name
+            if not phenotype_name.lower().endswith(".json"):
+                raise ValueError("Файл фенотипов должен иметь расширение .json.")
+            if not variant_name.lower().endswith((".vcf", ".vcf.gz")):
+                raise ValueError("Генетический файл должен иметь расширение .vcf или .vcf.gz.")
+            if not phenotype_payload or not variant_payload:
+                raise ValueError("Оба входных файла должны быть непустыми.")
+            if len(phenotype_payload) > MAX_UPLOAD or len(variant_payload) > MAX_UPLOAD:
+                raise ValueError("Размер каждого входного файла не должен превышать 50 МБ.")
+            case = parse_case_files(
+                [(variant_name, variant_payload), (phenotype_name, phenotype_payload)],
+                Path(variant_name).stem,
+            )
+            if not case.phenotype_features:
+                raise ValueError("JSON не содержит распознаваемых положительных или исключённых HPO-признаков.")
             if not case.variants:
                 details = "; ".join(case.warnings[:4])
-                raise ValueError("В файле не найдены варианты. " + details)
+                raise ValueError("В VCF не найдены варианты. " + details)
 
             online = bool(fields.get("online", []))
             assembly = bool(fields.get("assembly", []))
