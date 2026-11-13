@@ -147,9 +147,11 @@ def _build_variant_candidates(
             interpretation = "Для гена не рассчитано HPO-сходство по доступным аннотациям."
         reference = _reference_for_variant(variant, knowledge)
         reference_check = "Опубликованная запись для этой координаты не задана."
+        reference_compatible = False
         if reference:
             expected = str(reference.get("genotype", "")).casefold()
             alt_count = _genotype_label(variant.genotype)[1]
+            reference_compatible = expected == "heterozygous" and alt_count == 1
             if expected == "heterozygous" and alt_count == 1:
                 reference_check = (
                     "Точная координата совпала; GT согласуется с опубликованным heterozygous. "
@@ -212,13 +214,13 @@ def _build_variant_candidates(
             "mechanism": mechanism,
             "mechanism_check": mechanism_check,
             "published_reference_check": reference_check,
+            "published_reference_compatible": reference_compatible,
             "published_reference": reference,
             "published_hgvs": (reference or {}).get("hgvs"),
             "published_consequence": (reference or {}).get("published_consequence"),
             "interpretation": interpretation,
         })
     rows.sort(key=lambda item: (
-        item.get("published_reference") is None,
         item["gene_rank"] is None,
         item["gene_rank"] if item["gene_rank"] is not None else 10**9,
         _consequence_priority(item.get("consequence")),
@@ -232,6 +234,28 @@ def _build_variant_candidates(
         else:
             item["rank"] = None
     return rows
+def _select_prediction(variant_rows: list[dict[str, Any]]) -> str:
+    """Choose a unique top-gene allele; abstain when the VCF cannot distinguish variants."""
+    ranked = [item for item in variant_rows if item.get("gene_rank") is not None]
+    if not ranked:
+        return "no_causal_variant_in_vcf"
+    best_gene_rank = min(item["gene_rank"] for item in ranked)
+    top_gene = [item for item in ranked if item["gene_rank"] == best_gene_rank]
+    published_matches = [item for item in top_gene if item.get("published_reference_compatible")]
+    if len(published_matches) == 1:
+        return str(published_matches[0]["variant"])
+    if len(top_gene) == 1:
+        return str(top_gene[0]["variant"])
+    ordered = sorted(top_gene, key=lambda item: (
+        _consequence_priority(item.get("consequence")), item["variant"]
+    ))
+    best_priority = _consequence_priority(ordered[0].get("consequence"))
+    second_priority = _consequence_priority(ordered[1].get("consequence"))
+    if best_priority < second_priority:
+        return str(ordered[0]["variant"])
+    return "no_causal_variant_in_vcf"
+
+
 def analyze_case(case: CaseInput, knowledge: dict[str, Any] | None = None) -> dict[str, Any]:
     knowledge = knowledge or load_knowledge()
     analysis_case = _case_with_reference_gene(case, knowledge)
@@ -275,10 +299,7 @@ def analyze_case(case: CaseInput, knowledge: dict[str, Any] | None = None) -> di
         recognized_phenotypes = [hit.to_dict() for hit in legacy_hits]
 
     variant_candidates = _build_variant_candidates(analysis_case, gene_candidates, knowledge)
-    prediction = next(
-        (item["variant"] for item in variant_candidates if item.get("rank") is not None),
-        "no_causal_variant_in_vcf",
-    )
+    prediction = _select_prediction(variant_candidates)
 
     if not recognized_phenotypes or not case.variants:
         status = "incomplete"
