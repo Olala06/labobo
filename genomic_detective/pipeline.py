@@ -125,6 +125,24 @@ def _build_variant_candidates(
             else:
                 reference_check = "Точная координата совпала с референсной записью Phenopacket."
             interpretation += " " + str(reference.get("note", ""))
+        mechanism_check = "Курируемый механизм для этого гена не найден."
+        if mechanism:
+            consequence_text = str(variant.consequence or "").casefold()
+            if not consequence_text:
+                mechanism_check = (
+                    "Не подтверждён: VCF не содержит consequence/transcript annotation. "
+                    "Для проверки описанного splice-site механизма нужна независимая функциональная аннотация."
+                )
+            elif "splice" in consequence_text or "donor" in consequence_text or "acceptor" in consequence_text:
+                mechanism_check = (
+                    f"Аннотация consequence ({variant.consequence}) совместима со splice-site эффектом, "
+                    "но изменение РНК/белка и escape from NMD экспериментально не подтверждены."
+                )
+            else:
+                mechanism_check = (
+                    f"Текущая consequence-аннотация ({variant.consequence}) сама по себе не подтверждает "
+                    "описанный splice-site механизм; требуется проверка транскрипта."
+                )
         gnomad_af = (
             variant.info.get("gnomAD_AF")
             or variant.info.get("gnomADg_AF")
@@ -145,6 +163,7 @@ def _build_variant_candidates(
             "hpo_score": candidate.get("adjusted_hpo_score_percent"),
             "inheritance_assessment": inheritance,
             "mechanism": mechanism,
+            "mechanism_check": mechanism_check,
             "published_reference_check": reference_check,
             "published_reference": reference,
             "interpretation": interpretation,
